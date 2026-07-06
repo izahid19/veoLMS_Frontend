@@ -117,8 +117,7 @@ export const AdminLayout = () => {
 
             <SidebarLink 
               link={{ label: 'Log out', icon: <LogOut className="w-5 h-5" /> }} 
-              onClick={(e) => {
-                e?.preventDefault();
+              onClick={() => {
                 setShowLogoutModal(true);
               }} 
               className="text-error hover:bg-error-container/50 hover:text-error !text-error"

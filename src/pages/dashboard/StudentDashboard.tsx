@@ -232,7 +232,7 @@ export default function StudentDashboard() {
                   <div 
                     key={i} 
                     className="group cursor-pointer flex gap-4 items-start"
-                    onClick={() => navigate(`/dashboard/learn/${watch.courseSlug}/${watch.lesson._id || watch.lesson}`)}
+                    onClick={() => navigate(`/dashboard/learn/${watch.courseSlug}/${(watch.lesson as any)._id || watch.lesson}`)}
                   >
                     <div className="mt-1 w-8 h-8 rounded-full bg-[#262626] flex items-center justify-center flex-shrink-0 group-hover:bg-[#ff6b00]/20 transition-colors">
                       <PlayCircle className="w-4 h-4 text-[#a3a3a3] group-hover:text-[#ff6b00] transition-colors" />

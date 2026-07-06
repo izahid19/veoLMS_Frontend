@@ -27,7 +27,7 @@ export default function VerifyEmailPage() {
   }, [navigate]);
 
   useEffect(() => {
-    let timer: NodeJS.Timeout;
+    let timer: ReturnType<typeof setTimeout>;
     if (countdown > 0) {
       timer = setTimeout(() => setCountdown((c) => c - 1), 1000);
     }
@@ -140,7 +140,7 @@ export default function VerifyEmailPage() {
               {otp.map((digit, index) => (
                 <input
                   key={index}
-                  ref={(el) => (inputRefs.current[index] = el)}
+                  ref={(el) => { inputRefs.current[index] = el; }}
                   type="text"
                   maxLength={1}
                   value={digit}

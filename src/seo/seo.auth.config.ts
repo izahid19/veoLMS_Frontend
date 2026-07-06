@@ -14,7 +14,7 @@ export const loginSeoConfig = {
     locale: 'en_US',
   },
   twitterCard: {
-    card: 'summary_large_image',
+    card: 'summary_large_image' as const,
     site: '@VeoLMS',
     creator: '@VeoLMS',
     title: 'Log In | VeoLMS',
@@ -40,7 +40,7 @@ export const registerSeoConfig = {
     locale: 'en_US',
   },
   twitterCard: {
-    card: 'summary_large_image',
+    card: 'summary_large_image' as const,
     site: '@VeoLMS',
     creator: '@VeoLMS',
     title: 'Sign Up | VeoLMS',
@@ -66,7 +66,7 @@ export const verifyEmailSeoConfig = {
     locale: 'en_US',
   },
   twitterCard: {
-    card: 'summary_large_image',
+    card: 'summary_large_image' as const,
     site: '@VeoLMS',
     creator: '@VeoLMS',
     title: 'Verify Email | VeoLMS',
@@ -92,7 +92,7 @@ export const forgotPasswordSeoConfig = {
     locale: 'en_US',
   },
   twitterCard: {
-    card: 'summary_large_image',
+    card: 'summary_large_image' as const,
     site: '@VeoLMS',
     creator: '@VeoLMS',
     title: 'Forgot Password | VeoLMS',
@@ -118,7 +118,7 @@ export const resetPasswordSeoConfig = {
     locale: 'en_US',
   },
   twitterCard: {
-    card: 'summary_large_image',
+    card: 'summary_large_image' as const,
     site: '@VeoLMS',
     creator: '@VeoLMS',
     title: 'Reset Password | VeoLMS',
