@@ -45,8 +45,7 @@ export const Navbar = () => {
   };
 
   const navLinks = [
-    { name: 'Pathways', path: '/courses' },
-    { name: 'Curriculum', path: '/courses' },
+    { name: 'Courses', path: '/courses' },
   ];
 
   return (

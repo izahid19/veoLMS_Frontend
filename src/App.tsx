@@ -36,7 +36,7 @@ import ProfilePage from "./pages/dashboard/ProfilePage";
 import PurchaseHistoryPage from "./pages/dashboard/PurchaseHistoryPage";
 
 // Admin
-import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
 import AdminCoursesPage from "./pages/admin/AdminCoursesPage";
 import CreateCoursePage from "./pages/admin/CreateCoursePage";
 import EditCoursePage from "./pages/admin/EditCoursePage";
@@ -48,7 +48,22 @@ import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 // NotFound
 import NotFoundPage from "./pages/NotFoundPage";
 
-const queryClient = new QueryClient();
+import { AxiosError } from 'axios';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: (failureCount, error) => {
+        if (error instanceof AxiosError) {
+          if (error.response?.status === 401 || error.response?.status === 403 || error.response?.status === 404) {
+            return false; // Do not retry on auth/not-found errors
+          }
+        }
+        return failureCount < 3;
+      },
+    },
+  },
+});
 
 function App() {
   return (
@@ -76,10 +91,10 @@ function App() {
 
           {/* Student Routes - ProtectedRoute + DashboardLayout */}
           <Route element={<ProtectedRoute />}>
+            <Route path="/dashboard/learn/:courseSlug/:lessonId" element={<CoursePlayerPage />} />
             <Route element={<DashboardLayout />}>
               <Route path="/dashboard" element={<StudentDashboard />} />
               <Route path="/dashboard/my-courses" element={<MyCoursesPage />} />
-              <Route path="/dashboard/learn/:courseSlug/:lessonId" element={<CoursePlayerPage />} />
               <Route path="/dashboard/profile" element={<ProfilePage />} />
               <Route path="/dashboard/purchases" element={<PurchaseHistoryPage />} />
             </Route>
@@ -88,7 +103,7 @@ function App() {
           {/* Admin Routes - AdminRoute + AdminLayout */}
           <Route element={<AdminRoute />}>
             <Route element={<AdminLayout />}>
-              <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin" element={<AdminDashboardPage />} />
               <Route path="/admin/courses" element={<AdminCoursesPage />} />
               <Route path="/admin/courses/create" element={<CreateCoursePage />} />
               <Route path="/admin/courses/:id/edit" element={<EditCoursePage />} />

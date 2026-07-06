@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { 
   LayoutDashboard, 
   BookOpen, 
@@ -9,21 +9,22 @@ import {
   CreditCard, 
   Settings, 
   LogOut, 
-  Menu,
+  ChevronLeft,
+  ChevronRight,
   ShieldCheck
 } from 'lucide-react';
 import { toast } from '../../Utils/toast';
 
 import useAuthStore from '../../store/authStore';
 import { logout } from '../../crud/auth.crud';
-import { cn } from '../../Utils/helpers';
+import { Sidebar, SidebarBody, SidebarLink } from '../ui/sidebar';
 import { Modal } from '../ui/modal';
 
 export const AdminLayout = () => {
   const { user, clearAuth } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
-  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const [open, setOpen] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const handleLogout = async () => {
@@ -33,7 +34,7 @@ export const AdminLayout = () => {
       toast.success('Logged out successfully');
       setShowLogoutModal(false);
       navigate('/');
-    } catch (error) {
+    } catch {
       toast.error('Failed to logout');
     }
   };
@@ -47,126 +48,115 @@ export const AdminLayout = () => {
     { name: 'Settings', path: '/admin/settings', icon: Settings },
   ];
 
-  const getInitials = () => {
-    return `${user?.firstName?.charAt(0) || ''}${user?.lastName?.charAt(0) || ''}`.toUpperCase();
-  };
-
-  const SidebarContent = () => (
-    <div className="flex flex-col h-full bg-surface border-r border-surface-border">
-      <div className="p-6">
-        <Link to="/" className="flex items-center gap-2 group mb-8">
-          <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-on-primary font-bold shadow-success-glow group-hover:scale-105 transition-transform">
-            V
-          </div>
-          <span className="text-xl font-display-md font-bold text-on-surface">VeoLMS Admin</span>
-        </Link>
-        <nav className="flex flex-col gap-2">
-          {navLinks.map((link) => {
-            // Precise active matching for sub-routes
-            const isActive = link.path === '/admin' 
-              ? location.pathname === '/admin' 
-              : location.pathname.startsWith(link.path);
-              
-            const Icon = link.icon;
-            return (
-              <Link
-                key={link.name}
-                to={link.path}
-                onClick={() => setIsMobileSidebarOpen(false)}
-                className={cn(
-                  'flex items-center gap-3 px-4 py-3 rounded-lg font-label-md transition-all duration-200',
-                  isActive
-                    ? 'bg-primary-container text-on-primary-container font-semibold shadow-sm'
-                    : 'text-on-surface-variant hover:bg-surface-dim hover:text-on-surface'
-                )}
-              >
-                <Icon className={cn("w-5 h-5", isActive ? "text-primary" : "text-on-surface-variant")} />
-                {link.name}
-              </Link>
-            );
-          })}
-        </nav>
-      </div>
-
-      <div className="mt-auto p-6 border-t border-surface-border">
-        <button
-          onClick={() => setShowLogoutModal(true)}
-          className="flex items-center gap-3 px-4 py-3 w-full rounded-lg font-label-md text-error hover:bg-error-container/50 transition-colors"
-        >
-          <LogOut className="w-5 h-5" />
-          Log out
-        </button>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="min-h-screen bg-background flex text-on-surface font-sans antialiased">
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:block w-64 fixed inset-y-0 z-40">
-        <SidebarContent />
-      </aside>
+    <div className="min-h-screen bg-background flex flex-col md:flex-row text-on-surface font-sans antialiased overflow-hidden relative">
+      {/* Cinematic Background Glow */}
+      <div className="fixed inset-0 z-0 flex items-center justify-center pointer-events-none opacity-40">
+        <div className="absolute top-[-20%] left-[-10%] w-[800px] h-[800px] bg-primary-container/10 blur-[120px] rounded-full mix-blend-screen" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[800px] h-[800px] bg-purple-500/10 blur-[120px] rounded-full mix-blend-screen" />
+      </div>
 
-      {/* Mobile Sidebar */}
-      <AnimatePresence>
-        {isMobileSidebarOpen && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setIsMobileSidebarOpen(false)}
-              className="fixed inset-0 bg-black/60 z-40 md:hidden backdrop-blur-sm"
+      <Sidebar open={open} setOpen={setOpen}>
+        <SidebarBody className="justify-between gap-10">
+          <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
+            <div className="flex items-center mb-8 px-4">
+              <Link to="/" className="flex items-center gap-2 group">
+                <div className="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center text-white font-bold shadow-success-glow group-hover:scale-105 transition-transform shrink-0">
+                  V
+                </div>
+                <motion.div 
+                  animate={{ display: open ? "flex" : "none", opacity: open ? 1 : 0 }} 
+                  className="items-center"
+                >
+                  <span className="text-lg font-display-md font-bold text-on-surface whitespace-nowrap">VeoLMS Admin</span>
+                </motion.div>
+              </Link>
+            </div>
+            
+            <nav className="flex flex-col gap-2">
+              {navLinks.map((link) => {
+                const isActive = link.path === '/admin' 
+                  ? location.pathname === '/admin' 
+                  : location.pathname.startsWith(link.path);
+
+                return (
+                  <SidebarLink 
+                    key={link.name} 
+                    link={{ label: link.name, href: link.path, icon: <link.icon className="w-5 h-5" /> }} 
+                    isActive={isActive}
+                    onClick={() => {
+                      if (window.innerWidth < 768) {
+                        setOpen(false);
+                      }
+                    }}
+                  />
+                );
+              })}
+            </nav>
+          </div>
+
+          <div className="mt-auto pt-6 border-t border-surface-border flex flex-col gap-2">
+            <div className="px-4 py-2 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center border border-primary-container/20 shrink-0 overflow-hidden">
+                {user?.avatar ? (
+                  <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xs font-bold text-on-primary-container">
+                    {user?.firstName?.charAt(0).toUpperCase()}
+                  </span>
+                )}
+              </div>
+              <motion.div 
+                animate={{ display: open ? "block" : "none", opacity: open ? 1 : 0 }} 
+                className="overflow-hidden"
+              >
+                <p className="text-sm font-label-md text-on-surface truncate max-w-[120px]">{user?.firstName}</p>
+                <p className="text-xs text-primary-container font-semibold truncate max-w-[120px]">Administrator</p>
+              </motion.div>
+            </div>
+
+            <SidebarLink 
+              link={{ label: 'Log out', icon: <LogOut className="w-5 h-5" /> }} 
+              onClick={(e) => {
+                e?.preventDefault();
+                setShowLogoutModal(true);
+              }} 
+              className="text-error hover:bg-error-container/50 hover:text-error !text-error"
             />
-            <motion.aside
-              initial={{ x: '-100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-64 z-50 md:hidden"
-            >
-              <SidebarContent />
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+          </div>
+        </SidebarBody>
+      </Sidebar>
 
       {/* Main Content */}
-      <main className="flex-1 md:ml-64 flex flex-col min-h-screen">
-        {/* Topbar */}
-        <header className="h-16 bg-surface/80 backdrop-blur-md border-b border-surface-border sticky top-0 z-30 px-4 md:px-8 flex items-center justify-between">
+      <main className="flex-1 flex flex-col h-screen overflow-y-auto relative z-10">
+        <button 
+          onClick={() => setOpen(!open)}
+          className="hidden md:flex absolute top-6 -left-4 z-50 bg-surface-dim/80 backdrop-blur-md border border-surface-border rounded-full p-1.5 text-on-surface-variant hover:text-white hover:bg-surface-dim shadow-md transition-transform hover:scale-110"
+        >
+          {open ? <ChevronLeft className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+        </button>
+
+        {/* Mobile Header (Hidden on Desktop) */}
+        <header className="md:hidden h-16 bg-surface/80 backdrop-blur-md border-b border-surface-border sticky top-0 z-30 px-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <button
-              onClick={() => setIsMobileSidebarOpen(true)}
-              className="md:hidden p-2 -ml-2 text-on-surface-variant hover:text-on-surface hover:bg-surface-dim rounded-full transition-colors"
-            >
-              <Menu className="w-6 h-6" />
-            </button>
             <div className="flex items-center gap-2 text-on-surface-variant">
-              <ShieldCheck className="w-5 h-5 text-primary" />
+              <ShieldCheck className="w-5 h-5 text-primary-container" />
               <h2 className="text-lg font-display-md font-semibold">Admin Panel</h2>
             </div>
           </div>
-          
-          <div className="flex items-center gap-3 ml-auto">
-            <div className="text-right hidden sm:block">
-              <p className="text-sm font-label-md text-on-surface">
-                {user?.firstName} {user?.lastName}
-              </p>
-              <p className="text-xs text-primary font-semibold">Administrator</p>
-            </div>
-            <div className="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center border-2 border-primary/20 overflow-hidden">
-              {user?.avatar ? (
-                <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-sm font-bold text-on-primary-container">{getInitials()}</span>
-              )}
-            </div>
+          <div className="w-8 h-8 rounded-full bg-primary-container flex items-center justify-center border border-primary-container/20 overflow-hidden">
+            {user?.avatar ? (
+              <img src={user.avatar} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-xs font-bold text-on-primary-container">
+                {user?.firstName?.charAt(0).toUpperCase()}
+              </span>
+            )}
           </div>
         </header>
 
         {/* Page Content */}
-        <div className="flex-1 p-4 md:p-8">
+        <div className="flex-1 w-full h-full p-4 md:p-8">
           <Outlet />
         </div>
       </main>
