@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useFormik } from 'formik';
 import { useNavigate, Link } from 'react-router-dom';
-import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Eye, EyeOff, ArrowLeft } from 'lucide-react';
 import { toast } from '../../Utils/toast';
 import { signup, checkUsername } from '../../crud/auth.crud';
 import { Label } from '../../components/ui/label';
@@ -86,15 +86,23 @@ export default function RegisterPage() {
         <div className="absolute bottom-[-20%] left-[-10%] w-[800px] h-[800px] bg-purple-500/10 blur-[120px] rounded-full mix-blend-screen" />
       </div>
 
+      {/* Back Button */}
+      <div className="absolute top-8 left-8 z-50">
+        <Link to="/" className="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors text-sm font-medium">
+          <ArrowLeft className="w-4 h-4" />
+          Back to Home
+        </Link>
+      </div>
+
       <div className="flex-1 flex flex-col justify-center items-center w-full relative z-10 px-margin-mobile md:px-margin-desktop py-20">
-        <div className="glass-panel w-full max-w-lg p-8 md:p-12 rounded-3xl shadow-[0_8px_32px_rgba(0,0,0,0.6)] border border-surface-border/50 bg-surface-dim/80 backdrop-blur-2xl relative overflow-hidden group">
+        <div className="glass-panel w-full max-w-[440px] p-8 md:p-10 rounded-[24px] shadow-[0_8px_32px_rgba(0,0,0,0.6)] border border-surface-border/50 bg-surface-dim/80 backdrop-blur-2xl relative overflow-hidden group">
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
 
-          <div className="mb-10 text-center">
-            <h2 className="text-3xl md:text-4xl font-display-lg text-on-surface font-bold tracking-tight mb-3">
+          <div className="mb-8 text-center">
+            <h2 className="text-2xl md:text-3xl font-display-lg text-on-surface font-bold tracking-tight mb-2">
               Welcome to VeoLMS
             </h2>
-            <p className="font-body-md text-on-surface-variant text-lg">
+            <p className="font-body-md text-on-surface-variant text-sm">
               Create an account to start your learning journey.
             </p>
           </div>
@@ -212,7 +220,7 @@ export default function RegisterPage() {
             </LabelInputContainer>
 
             <button
-              className="group/btn relative flex items-center justify-center w-full h-14 rounded-xl bg-primary-container font-label-md text-white shadow-[0_4px_12px_rgba(255,107,0,0.4)] hover:shadow-[0_0_24px_rgba(255,107,0,0.6)] hover:-translate-y-0.5 transition-all duration-300 overflow-hidden text-lg mt-4 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-[0_4px_12px_rgba(255,107,0,0.4)]"
+              className="group/btn relative flex items-center justify-center w-full h-12 rounded-xl bg-primary-container font-label-md text-white shadow-[0_4px_12px_rgba(255,107,0,0.4)] hover:shadow-[0_0_24px_rgba(255,107,0,0.6)] hover:-translate-y-0.5 transition-all duration-300 overflow-hidden text-[15px] font-semibold mt-2 disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-[0_4px_12px_rgba(255,107,0,0.4)]"
               type="submit"
               disabled={formik.isSubmitting || usernameStatus === 'taken' || usernameStatus === 'checking'}
             >

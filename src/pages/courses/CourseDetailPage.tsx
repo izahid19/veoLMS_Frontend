@@ -2,15 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Play, Lock, BookOpen, Clock, Users, ChevronDown, ChevronUp } from 'lucide-react';
-import { Plyr } from 'plyr-react';
-import 'plyr/dist/plyr.css';
 
 import { getCourseBySlug } from '../../crud/course.crud';
 import { checkEnrollment } from '../../crud/enrollment.crud';
-import { formatPrice, formatDuration, cn } from '../../Utils/helpers';
+import { formatPrice, formatDuration, cn, buildPlayerUrl } from '../../Utils/helpers';
 import { courseDetailSeo } from '../../seo/seo.courses.config';
 import useAuthStore from '../../store/authStore';
 import type { ICourseDetail, ISection, ILesson } from '../../types/course.types';
+import EnrollButton from '../../components/ui/EnrollButton';
 
 export default function CourseDetailPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -18,7 +17,6 @@ export default function CourseDetailPage() {
   const { isAuthenticated } = useAuthStore();
 
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
-  const [playingLesson, setPlayingLesson] = useState<string | null>(null);
 
   // 1. Fetch Course by slug
   const { data: course, isLoading: isCourseLoading, isError: isCourseError } = useQuery<ICourseDetail>({
@@ -31,10 +29,11 @@ export default function CourseDetailPage() {
   });
 
   // 2. Check Enrollment (only if authenticated and course is loaded)
-  const { data: enrollmentData, isLoading: isEnrollmentLoading } = useQuery({
-    queryKey: ['enrollment', course?._id],
+  const { data: enrollmentData, isLoading: isEnrollmentLoading, refetch: refetchEnrollment } = useQuery({
+    queryKey: ['enrollment-check', course?._id],
     queryFn: () => checkEnrollment(course?._id as string),
     enabled: !!course?._id && isAuthenticated,
+    staleTime: 0,
   });
 
   const isEnrolled = enrollmentData?.isEnrolled ?? false;
@@ -88,18 +87,7 @@ export default function CourseDetailPage() {
     );
   }
 
-  const handleEnrollClick = () => {
-    if (!isAuthenticated) {
-      navigate('/login');
-      return;
-    }
-    // Placeholder for Razorpay integration
-    alert('Razorpay Checkout will be implemented in Phase 4');
-  };
-
-  const handleContinueLearning = () => {
-    navigate(`/dashboard/learn/${course.slug}/last`);
-  };
+  // Actions are now handled inside EnrollButton
 
   const toggleSection = (sectionId: string) => {
     setExpandedSection(prev => (prev === sectionId ? null : sectionId));
@@ -107,9 +95,7 @@ export default function CourseDetailPage() {
 
   const handleLessonPlay = (lesson: ILesson) => {
     if (lesson.isFree || isEnrolled) {
-      if (lesson.videoUrl) {
-        setPlayingLesson(playingLesson === lesson._id ? null : lesson._id);
-      }
+      navigate(buildPlayerUrl(slug as string, lesson._id));
     }
   };
 
@@ -175,7 +161,7 @@ export default function CourseDetailPage() {
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="font-['Inter'] text-[#a3a3a3] text-sm hidden sm:block">
-                      {section.lessons.length} lessons
+                      {section.lessons.length} lessons • {formatDuration(section.lessons.reduce((acc: number, l: ILesson) => acc + (l.duration || 0), 0))}
                     </span>
                     {expandedSection === section._id ? (
                       <ChevronUp className="w-5 h-5 text-white" />
@@ -195,7 +181,7 @@ export default function CourseDetailPage() {
                           <div 
                             className={cn(
                               "flex items-center justify-between p-4 group transition-colors",
-                              isAccessible ? "hover:bg-[#131313] cursor-pointer" : "opacity-75 cursor-not-allowed"
+                              isAccessible ? "hover:bg-[#131313] cursor-pointer" : "opacity-75 cursor-default"
                             )}
                             onClick={() => handleLessonPlay(lesson)}
                             title={!isAccessible ? "Enroll to access" : undefined}
@@ -213,7 +199,7 @@ export default function CourseDetailPage() {
                                 {lIdx + 1}. {lesson.title}
                               </span>
                               {lesson.isFree && !isEnrolled && (
-                                <span className="bg-[#ff6b00]/20 text-[#ff6b00] text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ml-2">
+                                <span className="bg-[#ff6b00] text-black text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ml-2">
                                   Preview
                                 </span>
                               )}
@@ -222,21 +208,6 @@ export default function CourseDetailPage() {
                               {formatDuration(lesson.duration)}
                             </span>
                           </div>
-
-                          {/* Inline Video Player for Preview */}
-                          {playingLesson === lesson._id && lesson.videoUrl && (
-                            <div className="p-4 bg-black border-t border-[#262626]">
-                              <Plyr
-                                source={{
-                                  type: 'video',
-                                  sources: [{ src: lesson.videoUrl, provider: 'html5' }],
-                                }}
-                                options={{
-                                  controls: ['play-large', 'play', 'progress', 'current-time', 'mute', 'volume', 'fullscreen'],
-                                }}
-                              />
-                            </div>
-                          )}
                         </div>
                       );
                     })}
@@ -260,23 +231,14 @@ export default function CourseDetailPage() {
             </div>
 
             {/* Actions */}
-            {isEnrolled ? (
-              <button
-                onClick={handleContinueLearning}
-                className="w-full bg-[#9333ea] hover:bg-[#7e22ce] text-white font-['Plus_Jakarta_Sans'] font-semibold py-3.5 rounded-[8px] transition-colors mb-4 flex justify-center items-center gap-2"
-              >
-                <Play className="w-5 h-5 fill-current" />
-                Continue Learning
-              </button>
-            ) : (
-              <button
-                onClick={handleEnrollClick}
-                disabled={isEnrollmentLoading}
-                className="w-full bg-[#ff6b00] hover:bg-[#e65a00] text-white font-['Plus_Jakarta_Sans'] font-semibold py-3.5 rounded-[8px] transition-colors mb-4 disabled:opacity-50 flex justify-center items-center"
-              >
-                {isEnrollmentLoading ? 'Checking...' : 'Enroll Now'}
-              </button>
-            )}
+            <EnrollButton
+              courseId={course._id}
+              courseSlug={course.slug}
+              price={course.price}
+              isEnrolled={isEnrolled}
+              isLoggedIn={isAuthenticated}
+              firstLessonId={course.sections?.[0]?.lessons?.[0]?._id}
+            />
 
             {/* Bullet Points */}
             <div className="mt-8 border-t border-[#262626] pt-6">

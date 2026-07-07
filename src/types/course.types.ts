@@ -8,6 +8,16 @@ export interface ILesson {
   duration: number;
   videoUrl?: string; // only returned if enrolled or isFree
   videoPublicId?: string;
+  content?: string;
+  resources?: { title: string; url: string }[];
+}
+
+export interface ILessonWatchResponse {
+  canAccess: boolean;
+  lesson?: ILesson & { videoUrl: string };
+  isFree?: boolean;
+  reason?: 'login_required' | 'not_enrolled';
+  courseSlug?: string;
 }
 
 // ─── Section ──────────────────────────────────────────────────────────────────
@@ -85,6 +95,8 @@ export interface UpdateLessonPayload {
   isFree?: boolean;
   videoUrl?: string;
   videoPublicId?: string;
+  content?: string;
+  resources?: { title: string; url: string }[];
 }
 
 // ─── Enrollment ───────────────────────────────────────────────────────────────
@@ -113,6 +125,28 @@ export interface ICourseProgress {
   totalLessons: number;
   completedLessons: number;
   percentage: number;
-  lastWatchedLesson: string | null;
+  lastWatchedLesson: { lessonId: string; watchedSeconds: number } | null;
   progresses: IProgress[];
+}
+
+// ─── Payment ──────────────────────────────────────────────────────────────────
+
+export interface IPayment {
+  _id: string;
+  student: { _id: string; firstName: string; lastName: string; emailId: string };
+  course: ICourse;
+  razorpayOrderId: string;
+  razorpayPaymentId: string;
+  amount: number;
+  status: 'pending' | 'completed' | 'failed';
+  createdAt: string;
+}
+
+export interface ICreateOrderResponse {
+  orderId: string;
+  amount: number;
+  currency: string;
+  courseName: string;
+  courseId: string;
+  keyId: string;
 }

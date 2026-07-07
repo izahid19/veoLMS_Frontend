@@ -31,9 +31,11 @@ import PaymentFailedPage from "./pages/payment/PaymentFailedPage";
 // Dashboard
 import StudentDashboard from "./pages/dashboard/StudentDashboard";
 import MyCoursesPage from "./pages/dashboard/MyCoursesPage";
-import CoursePlayerPage from "./pages/dashboard/CoursePlayerPage";
 import ProfilePage from "./pages/dashboard/ProfilePage";
 import PurchaseHistoryPage from "./pages/dashboard/PurchaseHistoryPage";
+
+// Player
+import CoursePlayerPage from "./pages/player/CoursePlayerPage";
 
 // Admin
 import AdminDashboardPage from "./pages/admin/AdminDashboardPage";
@@ -89,9 +91,12 @@ function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
 
-          {/* Student Routes - ProtectedRoute + DashboardLayout */}
+          {/* Public Player Routes */}
+          <Route path="/learn/:slug" element={<CoursePlayerPage />} />
+          <Route path="/learn/:slug/:lessonId" element={<CoursePlayerPage />} />
+
+          {/* Student Routes - ProtectedRoute */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard/learn/:courseSlug/:lessonId" element={<CoursePlayerPage />} />
             <Route element={<DashboardLayout />}>
               <Route path="/dashboard" element={<StudentDashboard />} />
               <Route path="/dashboard/my-courses" element={<MyCoursesPage />} />

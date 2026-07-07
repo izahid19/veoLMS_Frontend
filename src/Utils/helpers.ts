@@ -38,3 +38,17 @@ export function timeAgo(dateString: string): string {
   if (months < 12) return `${months} months ago`;
   return `${Math.floor(months / 12)} years ago`;
 }
+
+export function formatDate(dateString: string): string {
+  if (!dateString) return '';
+  const date = new Date(dateString);
+  return date.toLocaleDateString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
+export const buildPlayerUrl = (courseSlug: string, lessonId: string): string => {
+  return `/learn/${courseSlug}/${lessonId}`;
+};

@@ -1,13 +1,64 @@
 import React, { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useQueries } from '@tanstack/react-query';
-import { BookOpen, CheckCircle, Clock, PlayCircle } from 'lucide-react';
+import { BookOpen, CheckCircle, Clock, PlayCircle, Loader2 } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
+import { useContinueLearning } from '../../hooks/useContinueLearning';
 import { getMyEnrollments } from '../../crud/enrollment.crud';
 import { getCourseProgress } from '../../crud/progress.crud';
 import { studentDashboardSeo } from '../../seo/seo.courses.config';
-import { timeAgo } from '../../Utils/helpers';
+import { timeAgo, buildPlayerUrl } from '../../Utils/helpers';
 import type { IEnrollment, ICourseProgress, IProgress } from '../../types/course.types';
+
+function DashboardCourseCard({ enr, percentage }: { enr: IEnrollment; percentage: number }) {
+  const navigate = useNavigate();
+  const { handleContinue, isLoading } = useContinueLearning(enr.course._id, enr.course.slug, (enr.course as any).sections);
+
+  const handleNavigate = () => {
+    handleContinue();
+  };
+
+  return (
+    <div className="bg-[#131313] border border-[#262626] rounded-[12px] p-5 flex flex-col sm:flex-row items-center gap-5">
+      <div className="w-full sm:w-40 aspect-video rounded-[8px] overflow-hidden flex-shrink-0 relative">
+        {enr.course.thumbnail ? (
+          <img src={enr.course.thumbnail} alt={enr.course.title} className="w-full h-full object-cover" />
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#1a1a1a] to-[#262626]" />
+        )}
+      </div>
+      
+      <div className="flex-1 w-full space-y-3">
+        <h3 className="font-['Plus_Jakarta_Sans'] font-semibold text-white text-lg line-clamp-1">
+          {enr.course.title}
+        </h3>
+        
+        <div className="flex items-center gap-3">
+          <div className="flex-1 h-2 bg-[#262626] rounded-full overflow-hidden">
+            <div 
+              className="h-full bg-[#ff6b00] rounded-full transition-all duration-500"
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+          <span className="font-['Inter'] text-sm text-[#a3a3a3] whitespace-nowrap">
+            {Math.round(percentage)}% complete
+          </span>
+        </div>
+      </div>
+
+      <div className="w-full sm:w-auto mt-4 sm:mt-0">
+        <button
+          onClick={handleNavigate}
+          disabled={isLoading}
+          className="w-full sm:w-auto bg-[#262626] hover:bg-[#333] text-white font-['Inter'] font-medium px-5 py-2.5 rounded-[8px] transition-colors whitespace-nowrap disabled:opacity-50 flex items-center justify-center gap-2"
+        >
+          {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+          Continue
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -60,7 +111,7 @@ export default function StudentDashboard() {
           inProgress++;
         }
         
-        data.progresses.forEach(p => {
+        (data.progresses || []).forEach(p => {
           allProgresses.push({
             ...p,
             courseTitle: course.title,
@@ -171,45 +222,13 @@ export default function StudentDashboard() {
               {enrollments.slice(0, 3).map((enr, idx) => {
                 const progressData = progressQueries[idx]?.data as ICourseProgress | undefined;
                 const percentage = progressData?.percentage || 0;
-                const lastLessonId = progressData?.lastWatchedLesson || 'last';
 
                 return (
-                  <div key={enr._id} className="bg-[#131313] border border-[#262626] rounded-[12px] p-5 flex flex-col sm:flex-row items-center gap-5">
-                    <div className="w-full sm:w-40 aspect-video rounded-[8px] overflow-hidden flex-shrink-0 relative">
-                      {enr.course.thumbnail ? (
-                        <img src={enr.course.thumbnail} alt={enr.course.title} className="w-full h-full object-cover" />
-                      ) : (
-                        <div className="w-full h-full bg-gradient-to-br from-[#1a1a1a] to-[#262626]" />
-                      )}
-                    </div>
-                    
-                    <div className="flex-1 w-full space-y-3">
-                      <h3 className="font-['Plus_Jakarta_Sans'] font-semibold text-white text-lg line-clamp-1">
-                        {enr.course.title}
-                      </h3>
-                      
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 h-2 bg-[#262626] rounded-full overflow-hidden">
-                          <div 
-                            className="h-full bg-[#ff6b00] rounded-full transition-all duration-500"
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                        <span className="font-['Inter'] text-sm text-[#a3a3a3] whitespace-nowrap">
-                          {Math.round(percentage)}% complete
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="w-full sm:w-auto mt-4 sm:mt-0">
-                      <button
-                        onClick={() => navigate(`/dashboard/learn/${enr.course.slug}/${lastLessonId}`)}
-                        className="w-full sm:w-auto bg-[#262626] hover:bg-[#333] text-white font-['Inter'] font-medium px-5 py-2.5 rounded-[8px] transition-colors whitespace-nowrap"
-                      >
-                        Continue
-                      </button>
-                    </div>
-                  </div>
+                  <DashboardCourseCard
+                    key={enr._id}
+                    enr={enr}
+                    percentage={percentage}
+                  />
                 );
               })}
             </div>
@@ -232,7 +251,7 @@ export default function StudentDashboard() {
                   <div 
                     key={i} 
                     className="group cursor-pointer flex gap-4 items-start"
-                    onClick={() => navigate(`/dashboard/learn/${watch.courseSlug}/${(watch.lesson as any)._id || watch.lesson}`)}
+                    onClick={() => navigate(buildPlayerUrl(watch.courseSlug, (watch.lesson as any)._id || watch.lesson))}
                   >
                     <div className="mt-1 w-8 h-8 rounded-full bg-[#262626] flex items-center justify-center flex-shrink-0 group-hover:bg-[#ff6b00]/20 transition-colors">
                       <PlayCircle className="w-4 h-4 text-[#a3a3a3] group-hover:text-[#ff6b00] transition-colors" />

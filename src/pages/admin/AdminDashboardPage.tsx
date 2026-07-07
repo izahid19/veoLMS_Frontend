@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
@@ -12,63 +12,12 @@ import {
   TrendingUp,
   CreditCard,
   UserCheck,
+  User,
 } from 'lucide-react';
 
-import { cn } from '../../Utils/helpers';
-
-// ─── Mock API ─────────────────────────────────────────────────────────────────
-
-interface IEnrollment {
-  id: string;
-  studentName: string;
-  courseTitle: string;
-  amount: number; // in paise
-  date: string;
-  status: 'active' | 'completed' | 'cancelled';
-}
-
-interface IAdminStats {
-  totalCourses: number;
-  totalStudents: number;
-  totalRevenue: number; // in paise
-  totalEnrollments: number;
-  recentEnrollments: IEnrollment[];
-}
-
-// Simulated API call
-const fetchAdminStats = async (): Promise<IAdminStats> => {
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 800));
-  
-  return {
-    totalCourses: 12,
-    totalStudents: 1248,
-    totalRevenue: 45000000, // ₹4,50,000
-    totalEnrollments: 1450,
-    recentEnrollments: [
-      { id: '1', studentName: 'Rahul Sharma', courseTitle: 'Advanced React Patterns 2026', amount: 49900, date: '2026-07-06T10:30:00Z', status: 'active' },
-      { id: '2', studentName: 'Priya Patel', courseTitle: 'Node.js Microservices', amount: 99900, date: '2026-07-05T14:20:00Z', status: 'active' },
-      { id: '3', studentName: 'Amit Kumar', courseTitle: 'UI/UX Masterclass', amount: 0, date: '2026-07-04T09:15:00Z', status: 'completed' },
-      { id: '4', studentName: 'Neha Singh', courseTitle: 'Advanced React Patterns 2026', amount: 49900, date: '2026-07-03T16:45:00Z', status: 'active' },
-      { id: '5', studentName: 'Vikram Mehta', courseTitle: 'Python for Data Science', amount: 79900, date: '2026-07-02T11:10:00Z', status: 'cancelled' },
-    ],
-  };
-};
-
-// ─── Formatting Helpers ───────────────────────────────────────────────────────
-
-const formatPrice = (paise: number): string => {
-  if (paise === 0) return 'Free';
-  return `₹${(paise / 100).toLocaleString('en-IN')}`;
-};
-
-const formatDate = (dateString: string): string => {
-  return new Intl.DateTimeFormat('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(dateString));
-};
+import { cn, formatPrice, formatDate } from '../../Utils/helpers';
+import { getAdminStats } from '../../crud/admin.crud';
+import type { IAdminEnrollment } from '../../types/admin.types';
 
 // ─── Stat Card Component ──────────────────────────────────────────────────────
 
@@ -102,21 +51,15 @@ export default function AdminDashboardPage() {
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['admin-stats'],
-    queryFn: fetchAdminStats,
+    queryFn: getAdminStats,
   });
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="w-8 h-8 border-4 border-primary-container/30 border-t-primary rounded-full animate-spin" />
-      </div>
-    );
-  }
+  const stats = data?.data;
 
-  if (isError || !data) {
+  if (isError) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh]">
-        <p className="text-error font-semibold mb-2">Failed to load dashboard data</p>
+        <p className="text-error font-semibold mb-2">Failed to load stats</p>
         <button onClick={() => window.location.reload()} className="text-primary-container hover:underline">
           Try Again
         </button>
@@ -136,34 +79,42 @@ export default function AdminDashboardPage() {
 
       {/* Row 1: Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        <StatCard
-          title="Total Courses"
-          value={data.totalCourses.toLocaleString('en-IN')}
-          icon={BookOpen}
-          colorClass="text-purple-500"
-          delay={0.1}
-        />
-        <StatCard
-          title="Total Students"
-          value={data.totalStudents.toLocaleString('en-IN')}
-          icon={Users}
-          colorClass="text-blue-500"
-          delay={0.2}
-        />
-        <StatCard
-          title="Total Revenue"
-          value={formatPrice(data.totalRevenue)}
-          icon={IndianRupee}
-          colorClass="text-emerald-500"
-          delay={0.3}
-        />
-        <StatCard
-          title="Total Enrollments"
-          value={data.totalEnrollments.toLocaleString('en-IN')}
-          icon={Award}
-          colorClass="text-orange-500"
-          delay={0.4}
-        />
+        {isLoading ? (
+          Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="bg-surface border border-surface-border rounded-2xl p-6 h-[104px] animate-pulse" />
+          ))
+        ) : stats ? (
+          <>
+            <StatCard
+              title="Total Courses"
+              value={stats.totalCourses.toLocaleString('en-IN')}
+              icon={BookOpen}
+              colorClass="text-purple-500"
+              delay={0.1}
+            />
+            <StatCard
+              title="Total Students"
+              value={stats.totalStudents.toLocaleString('en-IN')}
+              icon={Users}
+              colorClass="text-blue-500"
+              delay={0.2}
+            />
+            <StatCard
+              title="Total Revenue"
+              value={formatPrice(stats.totalRevenue * 100)}
+              icon={IndianRupee}
+              colorClass="text-emerald-500"
+              delay={0.3}
+            />
+            <StatCard
+              title="Total Enrollments"
+              value={stats.totalEnrollments.toLocaleString('en-IN')}
+              icon={Award}
+              colorClass="text-orange-500"
+              delay={0.4}
+            />
+          </>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -182,7 +133,17 @@ export default function AdminDashboardPage() {
           </div>
           
           <div className="overflow-x-auto flex-1">
-            {data.recentEnrollments.length === 0 ? (
+            {isLoading ? (
+              <div className="p-6 space-y-4">
+                {Array.from({ length: 5 }).map((_, idx) => (
+                  <div key={idx} className="flex items-center gap-4 animate-pulse">
+                    <div className="w-8 h-8 rounded-full bg-surface-border" />
+                    <div className="h-4 bg-surface-border rounded w-1/4" />
+                    <div className="h-4 bg-surface-border rounded w-1/4 ml-auto" />
+                  </div>
+                ))}
+              </div>
+            ) : !stats || stats.recentEnrollments.length === 0 ? (
               <div className="p-12 flex flex-col items-center justify-center text-center h-full">
                 <div className="w-16 h-16 rounded-full bg-surface-dim flex items-center justify-center mb-4">
                   <Award className="w-8 h-8 text-on-surface-variant/50" />
@@ -202,29 +163,54 @@ export default function AdminDashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.recentEnrollments.map((enrollment) => (
-                    <tr key={enrollment.id} className="border-b border-surface-border last:border-0 hover:bg-surface-dim/20 transition-colors">
+                  {stats.recentEnrollments.map((enr: IAdminEnrollment) => (
+                    <tr key={enr._id} className="border-b border-surface-border last:border-0 hover:bg-surface-dim/20 transition-colors">
                       <td className="px-6 py-4 font-medium text-on-surface whitespace-nowrap">
-                        {enrollment.studentName}
-                      </td>
-                      <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap truncate max-w-[200px]">
-                        {enrollment.courseTitle}
-                      </td>
-                      <td className="px-6 py-4 font-semibold text-on-surface whitespace-nowrap">
-                        {formatPrice(enrollment.amount)}
+                        <div className="flex items-center gap-3">
+                          {enr.student?.avatar ? (
+                            <img src={enr.student.avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
+                          ) : (
+                            <div className="w-8 h-8 rounded-full bg-surface-dim flex items-center justify-center">
+                              <User className="w-4 h-4 text-on-surface-variant" />
+                            </div>
+                          )}
+                          <div>
+                            <div>{enr.student?.firstName} {enr.student?.lastName}</div>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap">
-                        {formatDate(enrollment.date)}
+                        <div className="flex items-center gap-3">
+                          {enr.course?.thumbnail ? (
+                            <img src={enr.course.thumbnail} alt="" className="w-10 h-6 rounded object-cover" />
+                          ) : (
+                            <div className="w-10 h-6 rounded bg-surface-dim" />
+                          )}
+                          <Link 
+                            to={`/courses/${enr.course?.slug}`}
+                            className="truncate max-w-[150px] hover:text-primary-container transition-colors" 
+                            title={enr.course?.title}
+                          >
+                            {enr.course?.title}
+                          </Link>
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 font-semibold text-on-surface whitespace-nowrap">
+                        {enr.payment ? formatPrice(enr.payment.amount) : formatPrice(enr.course?.price || 0)}
+                      </td>
+                      <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap">
+                        {formatDate(enr.enrolledAt)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={cn(
-                          'px-2.5 py-1 rounded-full text-xs font-semibold capitalize border',
-                          enrollment.status === 'active' && 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20',
-                          enrollment.status === 'completed' && 'bg-blue-500/10 text-blue-500 border-blue-500/20',
-                          enrollment.status === 'cancelled' && 'bg-error/10 text-error border-error/20'
-                        )}>
-                          {enrollment.status}
-                        </span>
+                        {enr.payment?.status === 'completed' || !enr.payment ? (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+                            Active
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 capitalize">
+                            {enr.payment.status}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}

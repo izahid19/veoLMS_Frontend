@@ -18,6 +18,8 @@ import {
   ChevronDown,
   ChevronUp,
   AlertTriangle,
+  Link,
+  Save,
 } from 'lucide-react';
 import { AxiosError } from 'axios';
 
@@ -216,6 +218,13 @@ const LessonItem = ({ lesson, courseId }: { lesson: ILesson; courseId: string })
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isVideoRemoveModalOpen, setIsVideoRemoveModalOpen] = useState(false);
 
+  // New states for content and resources
+  const [content, setContent] = useState(lesson.content || '');
+  const [resources, setResources] = useState<{title: string, url: string}[]>(lesson.resources || []);
+  const [newResourceTitle, setNewResourceTitle] = useState('');
+  const [newResourceUrl, setNewResourceUrl] = useState('');
+  const [isSavingDetails, setIsSavingDetails] = useState(false);
+
   const updateMutation = useMutation({
     mutationFn: (data: Partial<ILesson>) => adminUpdateLesson(lesson._id, data),
     onSuccess: () => {
@@ -254,6 +263,29 @@ const LessonItem = ({ lesson, courseId }: { lesson: ILesson; courseId: string })
       setIsEditingTitle(false);
       setTitle(lesson.title);
     }
+  };
+
+  const handleSaveDetails = () => {
+    setIsSavingDetails(true);
+    adminUpdateLesson(lesson._id, { content, resources })
+      .then(() => {
+        toast.success('Lesson details saved');
+        queryClient.invalidateQueries({ queryKey: ['course', courseId] });
+      })
+      .catch(() => toast.error('Failed to save details'))
+      .finally(() => setIsSavingDetails(false));
+  };
+
+  const handleAddResource = () => {
+    if (newResourceTitle.trim() && newResourceUrl.trim()) {
+      setResources([...resources, { title: newResourceTitle, url: newResourceUrl }]);
+      setNewResourceTitle('');
+      setNewResourceUrl('');
+    }
+  };
+
+  const handleRemoveResource = (index: number) => {
+    setResources(resources.filter((_, i) => i !== index));
   };
 
   return (
@@ -433,6 +465,86 @@ const LessonItem = ({ lesson, courseId }: { lesson: ILesson; courseId: string })
                     />
                   </div>
                 )}
+              </div>
+
+              {/* Settings Row 3: Description & Resources */}
+              <div className="flex flex-col gap-4 p-4 border border-surface-border rounded-xl bg-background shadow-sm">
+                
+                {/* Description */}
+                <div>
+                  <p className="text-sm font-semibold text-on-surface mb-2">Lesson Description</p>
+                  <TipTapEditor
+                    value={content}
+                    onChange={setContent}
+                    placeholder="Write a description for this lesson..."
+                  />
+                </div>
+
+                {/* Resources */}
+                <div className="mt-4 pt-4 border-t border-surface-border">
+                  <p className="text-sm font-semibold text-on-surface mb-2">Resources & Links</p>
+                  <p className="text-xs text-on-surface-variant mb-4">Attach external links, GitHub repositories, or files.</p>
+                  
+                  <div className="space-y-2 mb-4">
+                    {resources.map((res, idx) => (
+                      <div key={idx} className="flex items-center justify-between p-2.5 bg-surface-dim/30 border border-surface-border rounded-lg group">
+                        <div className="flex items-center gap-3 overflow-hidden">
+                          <Link className="w-4 h-4 text-primary-container shrink-0" />
+                          <div className="flex flex-col overflow-hidden">
+                            <span className="text-sm font-medium text-on-surface truncate">{res.title}</span>
+                            <span className="text-xs text-on-surface-variant truncate">{res.url}</span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleRemoveResource(idx)}
+                          className="p-1.5 text-on-surface-variant hover:text-error hover:bg-error/10 rounded-md transition-colors opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <input
+                      type="text"
+                      placeholder="Title (e.g. GitHub Repo)"
+                      className="flex-1 bg-surface-dim border border-surface-border rounded-lg px-3 py-2 text-sm text-on-surface outline-none focus:border-primary-container transition-colors"
+                      value={newResourceTitle}
+                      onChange={(e) => setNewResourceTitle(e.target.value)}
+                    />
+                    <input
+                      type="url"
+                      placeholder="URL (https://...)"
+                      className="flex-1 bg-surface-dim border border-surface-border rounded-lg px-3 py-2 text-sm text-on-surface outline-none focus:border-primary-container transition-colors"
+                      value={newResourceUrl}
+                      onChange={(e) => setNewResourceUrl(e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && handleAddResource()}
+                    />
+                    <button
+                      onClick={handleAddResource}
+                      disabled={!newResourceTitle.trim() || !newResourceUrl.trim()}
+                      className="px-4 py-2 bg-surface-border hover:bg-surface-border/80 text-on-surface rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center shrink-0"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mt-4 pt-4 border-t border-surface-border flex justify-end">
+                  <button
+                    onClick={handleSaveDetails}
+                    disabled={isSavingDetails}
+                    className="px-4 py-2 bg-primary-container hover:bg-primary-container/90 text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 flex items-center gap-2"
+                  >
+                    {isSavingDetails ? (
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <Save className="w-4 h-4" />
+                    )}
+                    Save Details & Resources
+                  </button>
+                </div>
               </div>
 
               {/* Danger Zone */}
