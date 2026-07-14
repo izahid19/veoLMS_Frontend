@@ -7,6 +7,9 @@ const axiosInstance = axios.create({
   withCredentials: true, // Needed for httpOnly cookies
 });
 
+// Store CSRF token in memory if cookie reading fails (due to cross-origin)
+let cachedCsrfToken: string | null = null;
+
 // Request Interceptor: Attach the access token and CSRF token to headers
 axiosInstance.interceptors.request.use(
   (config) => {
@@ -15,7 +18,7 @@ axiosInstance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
 
-    // Extract CSRF token from cookie and attach to header
+    // Extract CSRF token from cookie
     const getCookie = (name: string) => {
       const value = `; ${document.cookie}`;
       const parts = value.split(`; ${name}=`);
@@ -23,7 +26,7 @@ axiosInstance.interceptors.request.use(
       return null;
     };
 
-    const csrfToken = getCookie('csrfToken');
+    const csrfToken = getCookie('csrfToken') || cachedCsrfToken;
     if (csrfToken) {
       config.headers['x-csrf-token'] = csrfToken;
     }
@@ -37,7 +40,14 @@ axiosInstance.interceptors.request.use(
 
 // Response Interceptor: Handle 401s by transparently refreshing the token
 axiosInstance.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Cache the CSRF token from headers if the backend sent it
+    const token = response.headers['x-csrf-token'];
+    if (token) {
+      cachedCsrfToken = token;
+    }
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
 
