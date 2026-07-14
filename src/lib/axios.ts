@@ -89,11 +89,8 @@ axiosInstance.interceptors.response.use(
         }
       } catch (refreshError) {
         // Refresh genuinely failed (expired refresh token, revoked session, etc.)
-        // Clear auth state and redirect once — do NOT loop.
+        // Clear auth state. Let React Router guards handle redirecting if on a protected route.
         useAuthStore.getState().clearAuth();
-        if (!window.location.pathname.includes('/login')) {
-          window.location.href = '/login';
-        }
         return Promise.reject(refreshError);
       }
     }

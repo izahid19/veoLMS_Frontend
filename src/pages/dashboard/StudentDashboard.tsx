@@ -228,7 +228,7 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* 2. STATS ROW — 4 cards */}
+      {/* 2. STATS ROW - 4 cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-[#131313] border border-[#262626] rounded-[12px] p-5 flex items-center gap-4">
           <div className="w-11 h-11 rounded-xl bg-[#ff6b00]/10 flex items-center justify-center flex-shrink-0">

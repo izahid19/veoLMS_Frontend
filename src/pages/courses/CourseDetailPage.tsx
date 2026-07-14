@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Play, Lock, BookOpen, Clock, Users, ChevronDown, ChevronUp, PlayCircle } from "lucide-react";
-import Plyr from "plyr";
+import { Play, Lock, BookOpen, Clock, Users, ChevronDown, ChevronUp } from "lucide-react";
+import { FaLinkedinIn, FaGithub, FaXTwitter, FaYoutube, FaGlobe } from "react-icons/fa6";
 import Hls from "hls.js";
-import "plyr/dist/plyr.css";
+import { Plyr } from "plyr-react";
+import "plyr-react/plyr.css";
 
 import { getCourseBySlug } from "../../crud/course.crud";
 import { checkEnrollment } from "../../crud/enrollment.crud";
@@ -18,50 +19,105 @@ import EnrollButton from "../../components/ui/EnrollButton";
 // -- Inline mini video preview component
 
 function FreeLessonPreview({ videoUrl, thumbnail }: { videoUrl: string; thumbnail: string }) {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const plyrRef = useRef<Plyr | null>(null);
+  const playerRef = useRef<any>(null);
   const hlsRef = useRef<Hls | null>(null);
   const [isReady, setIsReady] = useState(false);
 
+  const isHls = videoUrl.includes(".m3u8");
+
   useEffect(() => {
-    if (!videoRef.current || !videoUrl) return;
-    const video = videoRef.current;
-    const isHls = videoUrl.includes(".m3u8");
+    if (!videoUrl) return;
 
-    const player = new Plyr(video, {
-      controls: ["play-large", "play", "progress", "current-time", "mute", "volume", "fullscreen"],
-    });
-    plyrRef.current = player;
-
-    if (isHls && Hls.isSupported()) {
-      const hls = new Hls({ startLevel: -1 });
-      hlsRef.current = hls;
-      hls.loadSource(videoUrl);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => setIsReady(true));
-    } else if (isHls && video.canPlayType("application/vnd.apple.mpegurl")) {
-      video.src = videoUrl;
-      setIsReady(true);
-    } else {
-      video.src = videoUrl;
-      setIsReady(true);
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
     }
 
-    return () => {
-      hlsRef.current?.destroy();
-      plyrRef.current?.destroy();
+    const initHls = () => {
+      const player = playerRef.current?.plyr;
+      if (!player) return;
+      const video = player.media as HTMLVideoElement;
+      if (!video) return;
+
+      if (isHls && Hls.isSupported()) {
+        const hls = new Hls({
+          startLevel: -1,
+          enableWorker: true,
+          lowLatencyMode: false,
+        });
+
+        hlsRef.current = hls;
+        hls.loadSource(videoUrl);
+        hls.attachMedia(video);
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          setIsReady(true);
+        });
+
+        hls.on(Hls.Events.ERROR, (_, data) => {
+          if (data.fatal) {
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+              hls.startLoad();
+            }
+          }
+        });
+      } else if (isHls && video.canPlayType("application/vnd.apple.mpegurl")) {
+        video.src = videoUrl;
+        setIsReady(true);
+      } else {
+        video.src = videoUrl;
+        setIsReady(true);
+      }
     };
-  }, [videoUrl]);
+
+    const timer = setTimeout(initHls, 300);
+
+    return () => {
+      clearTimeout(timer);
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [videoUrl, isHls]);
+
+  const plyrSources = isHls
+    ? {
+        type: 'video' as const,
+        sources: [{ src: videoUrl, type: 'application/x-mpegURL' }],
+        poster: thumbnail,
+      }
+    : {
+        type: 'video' as const,
+        sources: [{ src: videoUrl, type: 'video/mp4' }],
+        poster: thumbnail,
+      };
 
   return (
     <div className="aspect-video relative overflow-hidden rounded-xl mb-8 border-[3px] border-[#ff6b00]/70 shadow-2xl bg-black">
       <style>{`:root { --plyr-color-main: #ff6b00; }`}</style>
-      <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 bg-[#ff6b00] text-white text-[11px] font-bold tracking-widest uppercase px-3 py-1 rounded-full shadow-lg">
-        <PlayCircle className="w-3.5 h-3.5" /> Free Preview
+      
+      <div className="w-full h-full [&>.plyr]:h-full [&>.plyr]:w-full [&>.plyr__video-wrapper]:h-full [&>.plyr__video-wrapper]:w-full">
+        <Plyr
+          ref={playerRef}
+          options={{
+            controls: [
+              'play-large',
+              'play',
+              'progress',
+              'current-time',
+              'mute',
+              'volume',
+              'settings',
+              'fullscreen',
+            ],
+          }}
+          source={plyrSources}
+        />
       </div>
-      <video ref={videoRef} poster={thumbnail} className="w-full h-full" playsInline />
-      {!isReady && (
-        <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a]">
+
+      {!isReady && isHls && (
+        <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a] pointer-events-none">
           <div className="w-14 h-14 rounded-full border-2 border-[#262626] border-t-[#ff6b00] animate-spin" />
         </div>
       )}
@@ -106,8 +162,6 @@ export default function CourseDetailPage() {
     }
   }, [course]);
 
-  const firstFreeLesson = course?.sections?.flatMap((s: ISection) => s.lessons).find((l: ILesson) => l.isFree && l.videoUrl);
-
   if (isCourseLoading) {
     return (
       <div className="min-h-screen bg-[#050505] pt-24 pb-16 px-4 sm:px-6 lg:px-8">
@@ -145,28 +199,11 @@ export default function CourseDetailPage() {
 
         {/* LEFT COLUMN */}
         <div className="w-full lg:w-[70%]">
-          <h1 className="font-['Plus_Jakarta_Sans'] font-bold text-[36px] text-white leading-tight mb-4">{course.title}</h1>
-
-          {/* Instructor Card */}
-          {course.instructor && (
-            <div className="flex items-center gap-3 mb-6 p-3 bg-[#131313] border border-[#262626] rounded-xl w-fit">
-              {course.instructor.avatar ? (
-                <img src={course.instructor.avatar} alt={instructorName} className="w-9 h-9 rounded-full object-cover border border-[#262626] flex-shrink-0" />
-              ) : (
-                <div className="w-9 h-9 rounded-full bg-[#ff6b00]/20 border border-[#ff6b00]/30 flex items-center justify-center flex-shrink-0">
-                  <span className="font-['Plus_Jakarta_Sans'] font-bold text-[#ff6b00] text-[12px]">{instructorInitials}</span>
-                </div>
-              )}
-              <div>
-                <p className="font-['Plus_Jakarta_Sans'] font-semibold text-white text-[14px] leading-tight">{instructorName}</p>
-                <p className="font-['Inter'] text-[#a3a3a3] text-[12px]">Course Instructor</p>
-              </div>
-            </div>
-          )}
+          <h1 className="font-['Plus_Jakarta_Sans'] font-bold text-[36px] text-white leading-tight mb-6">{course.title}</h1>
 
           {/* Preview Video or Thumbnail */}
-          {firstFreeLesson?.videoUrl ? (
-            <FreeLessonPreview key={firstFreeLesson._id} videoUrl={firstFreeLesson.videoUrl} thumbnail={course.thumbnail} />
+          {course.trailerUrl ? (
+            <FreeLessonPreview key={course.trailerUrl} videoUrl={course.trailerUrl} thumbnail={course.thumbnail} />
           ) : (
             <div className="aspect-video relative overflow-hidden rounded-xl mb-8 border-[5px] border-[#ff6b00]/80 shadow-2xl">
               {course.thumbnail ? (
@@ -179,6 +216,57 @@ export default function CourseDetailPage() {
 
           {/* Description */}
           <div className="font-['Inter'] text-[#a3a3a3] text-[16px] mb-8 leading-relaxed prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: course.description }} />
+
+          {/* Instructor Section */}
+          {course.instructor && (
+            <div className="mb-10 bg-[#131313] border border-[#262626] rounded-2xl p-6">
+              <h2 className="font-['Plus_Jakarta_Sans'] font-bold text-xl text-white mb-4">Instructor</h2>
+              <div className="flex flex-col sm:flex-row sm:items-center gap-5">
+                {course.instructor.avatar ? (
+                  <img src={course.instructor.avatar} alt={instructorName} className="w-16 h-16 rounded-full object-cover border border-[#262626] flex-shrink-0" />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-[#ff6b00]/10 border border-[#ff6b00]/20 flex items-center justify-center flex-shrink-0">
+                    <span className="font-['Plus_Jakarta_Sans'] font-bold text-[#ff6b00] text-[18px]">{instructorInitials}</span>
+                  </div>
+                )}
+                <div>
+                  <p className="font-['Plus_Jakarta_Sans'] font-bold text-white text-lg leading-tight">{instructorName}</p>
+                  <p className="font-['Inter'] text-[#a3a3a3] text-sm mt-1 mb-3">{course.instructor.emailId}</p>
+
+                  {/* Social Links */}
+                  {course.instructor.socialLinks && Object.values(course.instructor.socialLinks).some(link => link) && (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {course.instructor.socialLinks.website && (
+                        <a href={course.instructor.socialLinks.website} target="_blank" rel="noopener noreferrer" className="p-2 bg-[#1c1c1c] hover:bg-[#ff6b00]/10 text-[#a3a3a3] hover:text-[#ff6b00] border border-[#262626] rounded-lg transition-all" title="Website / Portfolio">
+                          <FaGlobe size={15} />
+                        </a>
+                      )}
+                      {course.instructor.socialLinks.linkedin && (
+                        <a href={course.instructor.socialLinks.linkedin} target="_blank" rel="noopener noreferrer" className="p-2 bg-[#1c1c1c] hover:bg-[#ff6b00]/10 text-[#a3a3a3] hover:text-[#ff6b00] border border-[#262626] rounded-lg transition-all" title="LinkedIn">
+                          <FaLinkedinIn size={15} />
+                        </a>
+                      )}
+                      {course.instructor.socialLinks.github && (
+                        <a href={course.instructor.socialLinks.github} target="_blank" rel="noopener noreferrer" className="p-2 bg-[#1c1c1c] hover:bg-[#ff6b00]/10 text-[#a3a3a3] hover:text-[#ff6b00] border border-[#262626] rounded-lg transition-all" title="GitHub">
+                          <FaGithub size={15} />
+                        </a>
+                      )}
+                      {course.instructor.socialLinks.twitter && (
+                        <a href={course.instructor.socialLinks.twitter} target="_blank" rel="noopener noreferrer" className="p-2 bg-[#1c1c1c] hover:bg-[#ff6b00]/10 text-[#a3a3a3] hover:text-[#ff6b00] border border-[#262626] rounded-lg transition-all" title="Twitter / X">
+                          <FaXTwitter size={15} />
+                        </a>
+                      )}
+                      {course.instructor.socialLinks.youtube && (
+                        <a href={course.instructor.socialLinks.youtube} target="_blank" rel="noopener noreferrer" className="p-2 bg-[#1c1c1c] hover:bg-[#ff6b00]/10 text-[#a3a3a3] hover:text-[#ff6b00] border border-[#262626] rounded-lg transition-all" title="YouTube">
+                          <FaYoutube size={15} />
+                        </a>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Stats Row */}
           <div className="flex flex-wrap items-center gap-6 mb-12">
@@ -198,7 +286,7 @@ export default function CourseDetailPage() {
                 <button onClick={() => toggleSection(section._id)} className="w-full flex items-center justify-between p-5 hover:bg-[#1a1a1a] transition-colors focus:outline-none">
                   <span className="font-['Plus_Jakarta_Sans'] text-white font-semibold text-lg text-left">Section {sIdx + 1}: {section.title}</span>
                   <div className="flex items-center gap-4">
-                    <span className="font-['Inter'] text-[#a3a3a3] text-sm hidden sm:block">{section.lessons.length} lessons • {formatDuration(section.lessons.reduce((acc: number, l: ILesson) => acc + (l.duration || 0), 0))}</span>
+                    <span className="font-['Inter'] text-[#a3a3a3] text-sm hidden sm:block">{section.lessons.length} lessons â€¢ {formatDuration(section.lessons.reduce((acc: number, l: ILesson) => acc + (l.duration || 0), 0))}</span>
                     {expandedSection === section._id ? <ChevronUp className="w-5 h-5 text-white" /> : <ChevronDown className="w-5 h-5 text-white" />}
                   </div>
                 </button>
@@ -212,7 +300,6 @@ export default function CourseDetailPage() {
                             <div className="flex items-center gap-3">
                               {isAccessible ? <Play className="w-4 h-4 text-[#ff6b00]" /> : <Lock className="w-4 h-4 text-gray-500" />}
                               <span className={cn("font-['Inter'] text-[15px]", isAccessible ? "text-gray-200 group-hover:text-white" : "text-gray-500")}>{lIdx + 1}. {lesson.title}</span>
-                              {lesson.isFree && !isEnrolled && <span className="bg-[#ff6b00] text-black text-[10px] uppercase font-bold px-2 py-0.5 rounded-full ml-2">Preview</span>}
                             </div>
                             <span className="font-['Inter'] text-[#a3a3a3] text-sm">{formatDuration(lesson.duration)}</span>
                           </div>

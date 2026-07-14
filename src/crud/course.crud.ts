@@ -50,6 +50,10 @@ export const adminGetCourseById = (id: string) => {
   return axiosInstance.get<{ success: boolean; data: ICourseDetail }>(`${ADMIN_COURSES_URL}/${id}`);
 };
 
+export const adminGetAllInstructors = () => {
+  return axiosInstance.get<{ success: boolean; data: any[] }>(`/admin/instructors`);
+};
+
 /**
  * Create a new course. Requires admin role.
  */
@@ -90,6 +94,32 @@ export const adminUploadThumbnail = (id: string, file: File) => {
     formData,
     {
       headers: { 'Content-Type': 'multipart/form-data' },
+    },
+  );
+};
+
+/**
+ * Upload or replace the course trailer video.
+ * Sends as multipart/form-data.
+ */
+export const adminUploadTrailer = (
+  id: string,
+  file: File,
+  onProgress?: (event: { loaded: number; total?: number }) => void,
+) => {
+  const formData = new FormData();
+  formData.append('video', file); // field name matches multer's uploadVideo config
+
+  return axiosInstance.put<{ success: boolean; data: ICourse }>(
+    `${ADMIN_COURSES_URL}/${id}/trailer`,
+    formData,
+    {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: (progressEvent) => {
+        if (onProgress) {
+          onProgress({ loaded: progressEvent.loaded, total: progressEvent.total });
+        }
+      },
     },
   );
 };
@@ -172,4 +202,46 @@ export const adminUploadLessonVideo = (
       },
     },
   );
+};
+
+export const adminCreateInstructor = (data: {
+  firstName: string;
+  lastName: string;
+  emailId: string;
+  socialLinks?: {
+    website?: string;
+    linkedin?: string;
+    github?: string;
+    twitter?: string;
+    youtube?: string;
+  };
+}) => {
+  return axiosInstance.post<{ success: boolean; data: any }>('/admin/instructors', data);
+};
+
+export const adminUpdateInstructor = (id: string, data: {
+  firstName: string;
+  lastName: string;
+  emailId: string;
+  socialLinks?: {
+    website?: string;
+    linkedin?: string;
+    github?: string;
+    twitter?: string;
+    youtube?: string;
+  };
+}) => {
+  return axiosInstance.put<{ success: boolean; data: any }>(`/admin/instructors/${id}`, data);
+};
+
+export const adminDeleteInstructor = (id: string) => {
+  return axiosInstance.delete<{ success: boolean; data: any }>(`/admin/instructors/${id}`);
+};
+
+export const adminUploadInstructorAvatar = (id: string, file: File) => {
+  const formData = new FormData();
+  formData.append('avatar', file);
+  return axiosInstance.put<{ success: boolean; data: any }>(`/admin/instructors/${id}/avatar`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
 };

@@ -196,7 +196,9 @@ export default function AdminDashboardPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 font-semibold text-on-surface whitespace-nowrap">
-                        {enr.payment ? formatPrice(enr.payment.amount) : formatPrice(enr.course?.price || 0)}
+                        {typeof enr.payment?.amount === 'number' && !isNaN(enr.payment.amount) 
+                          ? formatPrice(enr.payment.amount) 
+                          : formatPrice(enr.course?.price || 0)}
                       </td>
                       <td className="px-6 py-4 text-on-surface-variant whitespace-nowrap">
                         {formatDate(enr.enrolledAt)}
