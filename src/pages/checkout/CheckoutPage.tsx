@@ -163,7 +163,7 @@ export default function CheckoutPage() {
           contact: phone,
         },
         theme: { color: '#ff6b00' },
-        handler: async (paymentResponse) => {
+        handler: async (paymentResponse: { razorpay_order_id: string; razorpay_payment_id: string; razorpay_signature: string }) => {
           try {
             await verifyPayment({
               razorpayOrderId: paymentResponse.razorpay_order_id,

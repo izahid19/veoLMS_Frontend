@@ -26,7 +26,7 @@ export default function StudentsPage() {
     if (!searchQuery) return students;
     const query = searchQuery.toLowerCase();
     return students.filter(
-      (s) =>
+      (s: IStudentDetail) =>
         s.firstName.toLowerCase().includes(query) ||
         s.lastName.toLowerCase().includes(query) ||
         s.emailId.toLowerCase().includes(query)
