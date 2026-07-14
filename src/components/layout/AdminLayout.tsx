@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
   LayoutDashboard, 
@@ -12,9 +12,12 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldCheck,
-  Tag
+  Tag,
+  Film,
+  Layout
 } from 'lucide-react';
 import { toast } from '../../Utils/toast';
+import { cn } from '../../Utils/helpers';
 
 import useAuthStore from '../../store/authStore';
 import { logout } from '../../crud/auth.crud';
@@ -25,8 +28,13 @@ export const AdminLayout = () => {
   const { user, clearAuth } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [open, setOpen] = useState(true);
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+
+  const editCourseMatch = location.pathname.match(/^\/admin\/courses\/([^\/]+)\/edit$/);
+  const editingCourseId = editCourseMatch ? editCourseMatch[1] : null;
+  const currentTab = searchParams.get('tab') || 'details';
 
   const handleLogout = async () => {
     try {
@@ -44,6 +52,7 @@ export const AdminLayout = () => {
     { name: 'Overview', path: '/admin', icon: LayoutDashboard },
     { name: 'Courses', path: '/admin/courses', icon: BookOpen },
     { name: 'Students', path: '/admin/students', icon: Users },
+    { name: 'Instructors', path: '/admin/instructors', icon: ShieldCheck },
     { name: 'Enrollments', path: '/admin/enrollments', icon: GraduationCap },
     { name: 'Payments', path: '/admin/payments', icon: CreditCard },
     { name: 'Coupons', path: '/admin/coupons', icon: Tag },
@@ -82,16 +91,47 @@ export const AdminLayout = () => {
                   : location.pathname.startsWith(link.path);
 
                 return (
-                  <SidebarLink 
-                    key={link.name} 
-                    link={{ label: link.name, href: link.path, icon: <link.icon className="w-5 h-5" /> }} 
-                    isActive={isActive}
-                    onClick={() => {
-                      if (window.innerWidth < 768) {
-                        setOpen(false);
-                      }
-                    }}
-                  />
+                  <div key={link.name} className="flex flex-col gap-1">
+                    <SidebarLink 
+                      link={{ label: link.name, href: link.path, icon: <link.icon className="w-5 h-5" /> }} 
+                      isActive={isActive}
+                      onClick={() => {
+                        if (window.innerWidth < 768) {
+                          setOpen(false);
+                        }
+                      }}
+                    />
+                    
+                    {/* Sub-links when editing a course */}
+                    {link.name === 'Courses' && editingCourseId && open && (
+                      <div className="flex flex-col gap-1 ml-9 mt-1 relative before:absolute before:left-[-12px] before:top-2 before:bottom-4 before:w-[1.5px] before:bg-surface-border">
+                        {[
+                          { id: 'details', label: 'Course Details', icon: Layout },
+                          { id: 'curriculum', label: 'Curriculum', icon: BookOpen },
+                          { id: 'trailer', label: 'Trailer', icon: Film },
+                          { id: 'settings', label: 'Settings', icon: Settings }
+                        ].map((subLink) => {
+                          const isSubActive = currentTab === subLink.id;
+                          const SubIcon = subLink.icon;
+                          return (
+                            <Link
+                              key={subLink.id}
+                              to={`/admin/courses/${editingCourseId}/edit?tab=${subLink.id}`}
+                              className={cn(
+                                "py-2 px-3 text-sm rounded-lg transition-colors relative flex items-center gap-3",
+                                isSubActive ? "text-primary bg-primary/5 font-semibold" : "text-on-surface-variant hover:text-on-surface hover:bg-surface-dim"
+                              )}
+                            >
+                              {/* Sublink active indicator dot */}
+                              {isSubActive && <div className="absolute left-[-15px] top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-primary" />}
+                              <SubIcon className="w-4 h-4" />
+                              {subLink.label}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 );
               })}
             </nav>

@@ -117,7 +117,7 @@ export const CourseCard: React.FC<CourseCardProps> = ({
         </h3>
 
         <p className="font-['Inter'] text-[#a3a3a3] text-[13px] mb-4">
-          {course.instructor.firstName} {course.instructor.lastName}
+          {course.instructor?.firstName} {course.instructor?.lastName}
         </p>
 
         {/* ── Footer ── */}

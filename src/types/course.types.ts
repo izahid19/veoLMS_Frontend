@@ -65,19 +65,30 @@ export interface ISection {
 
 // ─── Course (list view) ───────────────────────────────────────────────────────
 
+export interface ISocialLinks {
+  website?: string;
+  linkedin?: string;
+  github?: string;
+  twitter?: string;
+  youtube?: string;
+}
+
 export interface ICourse {
   _id: string;
   title: string;
   slug: string;
   description: string;
   thumbnail: string;
+  trailerUrl?: string;
+  trailerPublicId?: string;
   price: number;
   isPublished: boolean;
-  instructor: {
+  instructor?: {
     _id: string;
     firstName: string;
     lastName: string;
     avatar: string;
+    socialLinks?: ISocialLinks;
   };
   totalLessons: number;
   totalDuration: number;
@@ -88,12 +99,21 @@ export interface ICourse {
   effectivePrice?: number;
   discountedPrice?: number;
   priceBreakdown?: IPriceBreakdown;
+  enrollmentCount?: number;
 }
 
 // ─── Course Detail (with curriculum) ─────────────────────────────────────────
 
-export interface ICourseDetail extends ICourse {
+export interface ICourseDetail extends Omit<ICourse, 'instructor'> {
   sections: ISection[];
+  instructor?: {
+    _id: string;
+    firstName: string;
+    lastName: string;
+    emailId: string;
+    avatar: string;
+    socialLinks?: ISocialLinks;
+  };
 }
 
 // ─── Request payloads ─────────────────────────────────────────────────────────

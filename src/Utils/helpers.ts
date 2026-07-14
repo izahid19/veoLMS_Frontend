@@ -52,3 +52,48 @@ export function formatDate(dateString: string): string {
 export const buildPlayerUrl = (courseSlug: string, lessonId: string): string => {
   return `/learn/${courseSlug}/${lessonId}`;
 };
+
+/**
+ * Formats seconds into a human-readable duration string like "2h 30m" or "45m".
+ * Used for time-remaining and hours-watched displays.
+ */
+export function formatHumanDuration(seconds: number): string {
+  if (!seconds || seconds <= 0) return '0m';
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  if (h > 0) return `${h}h`;
+  return `${m}m`;
+}
+
+/**
+ * Calculates the current learning streak in consecutive days.
+ * Takes an array of ISO date strings (lastWatchedAt values).
+ * Returns the number of consecutive days ending today or yesterday.
+ */
+export function calcStreak(dates: string[]): number {
+  if (!dates.length) return 0;
+
+  // Unique calendar days (YYYY-MM-DD), sorted descending
+  const days = [...new Set(dates.map(d => d.slice(0, 10)))].sort().reverse();
+  if (!days.length) return 0;
+
+  const today = new Date().toISOString().slice(0, 10);
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+  // Streak must include today or yesterday to be active
+  if (days[0] !== today && days[0] !== yesterday) return 0;
+
+  let streak = 1;
+  for (let i = 1; i < days.length; i++) {
+    const prev = new Date(days[i - 1]);
+    const curr = new Date(days[i]);
+    const diffDays = Math.round((prev.getTime() - curr.getTime()) / 86400000);
+    if (diffDays === 1) {
+      streak++;
+    } else {
+      break;
+    }
+  }
+  return streak;
+}

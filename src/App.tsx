@@ -46,6 +46,7 @@ import AdminCoursesPage from "./pages/admin/AdminCoursesPage";
 import CreateCoursePage from "./pages/admin/CreateCoursePage";
 import EditCoursePage from "./pages/admin/EditCoursePage";
 import StudentsPage from "./pages/admin/StudentsPage";
+import InstructorsPage from "./pages/admin/InstructorsPage";
 import EnrollmentsPage from "./pages/admin/EnrollmentsPage";
 import CouponsPage from "./pages/admin/CouponsPage";
 import CouponFormPage from "./pages/admin/CouponFormPage";
@@ -123,6 +124,7 @@ function App() {
               <Route path="/admin/courses/create" element={<CreateCoursePage />} />
               <Route path="/admin/courses/:id/edit" element={<EditCoursePage />} />
               <Route path="/admin/students" element={<StudentsPage />} />
+              <Route path="/admin/instructors" element={<InstructorsPage />} />
               <Route path="/admin/enrollments" element={<EnrollmentsPage />} />
               <Route path="/admin/coupons" element={<CouponsPage />} />
               <Route path="/admin/coupons/create" element={<CouponFormPage />} />

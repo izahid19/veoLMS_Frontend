@@ -239,7 +239,7 @@ export default function CheckoutPage() {
                 />
                 <div className="flex flex-col justify-center">
                   <h3 className="font-semibold text-[16px] text-white leading-tight mb-1">{courseData.title}</h3>
-                  <p className="text-[#a3a3a3] text-[13px] mb-2">{courseData.instructor.firstName} {courseData.instructor.lastName}</p>
+                  <p className="text-[#a3a3a3] text-[13px] mb-2">{courseData.instructor?.firstName} {courseData.instructor?.lastName}</p>
                   <p className="text-[#737373] text-[12px]">
                     {courseData.totalLessons} lessons · {formatDuration(courseData.totalDuration)}
                   </p>
