@@ -88,6 +88,7 @@ export interface ICourse {
   effectivePrice?: number;
   discountedPrice?: number;
   priceBreakdown?: IPriceBreakdown;
+  enrollmentCount?: number;
 }
 
 // ─── Course Detail (with curriculum) ─────────────────────────────────────────
