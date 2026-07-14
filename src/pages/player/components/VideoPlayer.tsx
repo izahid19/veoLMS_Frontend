@@ -21,6 +21,7 @@ interface VideoPlayerProps {
   prevLesson: ILesson | null;
   nextLesson: ILesson | null;
   watchData?: ILessonWatchResponse;
+  isWatchLoading?: boolean;
   isAuthenticated: boolean;
   completedLessons: Set<string>;
   onMarkComplete: (lessonId: string) => void;
@@ -36,6 +37,7 @@ export function VideoPlayer({
   prevLesson,
   nextLesson,
   watchData,
+  isWatchLoading = false,
   isAuthenticated,
   completedLessons,
   onMarkComplete,
@@ -302,7 +304,14 @@ export function VideoPlayer({
           className="w-full rounded-[12px] overflow-hidden bg-[#131313] shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-[#262626] relative"
           style={{ aspectRatio: '16/9', maxHeight: '75vh', maxWidth: 'calc(75vh * 16 / 9)' }}
         >
-          {canAccess && videoUrl ? (
+          {/* Show shimmer while loading watch access — avoids flashing lock screen */}
+          {isWatchLoading ? (
+            <div className="w-full h-full bg-[#0a0a0a] animate-pulse flex flex-col items-center justify-center gap-4">
+              <div className="w-16 h-16 rounded-full bg-[#1a1a1a]" />
+              <div className="w-32 h-4 bg-[#1a1a1a] rounded-lg" />
+              <div className="w-48 h-3 bg-[#1a1a1a] rounded-lg" />
+            </div>
+          ) : canAccess && videoUrl ? (
             <div className="w-full h-full relative">
               <Plyr
                 ref={playerRef}

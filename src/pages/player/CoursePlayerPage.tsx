@@ -351,6 +351,7 @@ export default function CoursePlayerPage() {
               prevLesson={prevLesson}
               nextLesson={nextLesson}
               watchData={watchData as any}
+              isWatchLoading={isWatchLoading}
               isAuthenticated={isAuthenticated}
               completedLessons={completedLessons}
               onMarkComplete={handleMarkComplete}
