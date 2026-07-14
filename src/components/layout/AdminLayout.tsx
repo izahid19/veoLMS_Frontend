@@ -11,7 +11,8 @@ import {
   LogOut, 
   ChevronLeft,
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  Tag
 } from 'lucide-react';
 import { toast } from '../../Utils/toast';
 
@@ -45,6 +46,7 @@ export const AdminLayout = () => {
     { name: 'Students', path: '/admin/students', icon: Users },
     { name: 'Enrollments', path: '/admin/enrollments', icon: GraduationCap },
     { name: 'Payments', path: '/admin/payments', icon: CreditCard },
+    { name: 'Coupons', path: '/admin/coupons', icon: Tag },
     { name: 'Settings', path: '/admin/settings', icon: Settings },
   ];
 

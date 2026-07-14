@@ -5,6 +5,8 @@ import { ChevronLeft, CheckCircle, Circle, PlayCircle, Lock } from 'lucide-react
 import { cn, formatDuration, buildPlayerUrl } from '../../../Utils/helpers';
 import type { ICourseDetail, ILesson } from '../../../types/course.types';
 import { toast } from '../../../Utils/toast';
+import { Modal } from '../../../components/ui/modal';
+import EnrollButton from '../../../components/ui/EnrollButton';
 
 interface PlayerSidebarProps {
   course: ICourseDetail;
@@ -29,6 +31,7 @@ export function PlayerSidebar({
 }: PlayerSidebarProps) {
   const navigate = useNavigate();
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({});
+  const [isEnrollModalOpen, setIsEnrollModalOpen] = useState(false);
 
   useEffect(() => {
     if (course?.sections) {
@@ -57,7 +60,7 @@ export function PlayerSidebar({
       if (!isAuthenticated) {
         toast.error('Login to enroll and access this lesson');
       } else {
-        toast.error('Enroll in this course to access this lesson');
+        setIsEnrollModalOpen(true);
       }
     }
   };
@@ -67,6 +70,7 @@ export function PlayerSidebar({
   const progressPercentage = totalLessonsCount > 0 ? Math.round((completedCount / totalLessonsCount) * 100) : 0;
 
   return (
+    <>
     <AnimatePresence initial={false}>
       {isSidebarOpen && (
         <motion.aside
@@ -180,5 +184,28 @@ export function PlayerSidebar({
         </motion.aside>
       )}
     </AnimatePresence>
+      {course && (
+        <Modal
+          isOpen={isEnrollModalOpen}
+          onClose={() => setIsEnrollModalOpen(false)}
+          title={<span className="text-xl font-bold text-white">Enrollment Required</span>}
+        >
+          <div className="flex flex-col gap-6 items-center text-center p-4">
+            <p className="text-base text-gray-300">
+              you have not erroled in thisd course , if you really like this course click on enrool button to enroll and watch other videos
+            </p>
+            <div className="w-full">
+              <EnrollButton
+                courseId={course._id}
+                courseSlug={course.slug}
+                price={course.price}
+                isEnrolled={isEnrolled}
+                isLoggedIn={isAuthenticated}
+              />
+            </div>
+          </div>
+        </Modal>
+      )}
+    </>
   );
 }

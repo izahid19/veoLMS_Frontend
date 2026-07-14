@@ -58,6 +58,9 @@ const courseValidationSchema = Yup.object({
   }),
   price: Yup.number().typeError('Price must be a number').required('Price is required').min(0),
   isPublished: Yup.boolean().default(false),
+  discountPercent: Yup.number().min(0).max(100),
+  discountExpiresAt: Yup.string().nullable(),
+  taxPercent: Yup.number().oneOf([0, 5, 12, 18, 28]),
 });
 
 // ─── TAB 1: Details Form ──────────────────────────────────────────────────────
@@ -72,13 +75,37 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ course, courseId }) => {
   const [thumbnail, setThumbnail] = useState<File | null>(null);
 
   const updateMutation = useMutation({
-    mutationFn: async (values: { title: string; description: string; price: number; isPublished: boolean }) => {
-      const payload: Partial<{ title: string; description: string; price: number; isPublished: boolean }> = {};
+    mutationFn: async (values: { 
+      title: string; 
+      description: string; 
+      price: number; 
+      isPublished: boolean;
+      discountPercent: number;
+      discountExpiresAt: string;
+      taxPercent: number;
+    }) => {
+      const payload: Partial<{ 
+        title: string; 
+        description: string; 
+        price: number; 
+        isPublished: boolean;
+        discountPercent: number;
+        discountExpiresAt: string | null;
+        taxPercent: number;
+      }> = {};
       if (values.title !== course.title) payload.title = values.title;
       if (values.description !== course.description) payload.description = values.description;
       const newPrice = Math.round(values.price * 100);
       if (newPrice !== course.price) payload.price = newPrice;
       if (values.isPublished !== course.isPublished) payload.isPublished = values.isPublished;
+      if (values.discountPercent !== (course.discountPercent || 0)) payload.discountPercent = values.discountPercent;
+      if (values.taxPercent !== (course.taxPercent || 18)) payload.taxPercent = Number(values.taxPercent);
+      
+      const newExpiry = values.discountExpiresAt ? new Date(values.discountExpiresAt).toISOString() : null;
+      const oldExpiry = course.discountExpiresAt ? new Date(course.discountExpiresAt).toISOString() : null;
+      if (newExpiry !== oldExpiry) {
+        payload.discountExpiresAt = newExpiry;
+      }
 
       if (Object.keys(payload).length > 0) {
         await adminUpdateCourse(courseId, payload);
@@ -105,6 +132,9 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ course, courseId }) => {
         description: course.description,
         price: course.price / 100, // convert paise to ₹
         isPublished: course.isPublished,
+        discountPercent: course.discountPercent || 0,
+        discountExpiresAt: course.discountExpiresAt ? new Date(course.discountExpiresAt).toISOString().slice(0, 16) : '',
+        taxPercent: course.taxPercent || 18,
       }}
       enableReinitialize
       validationSchema={courseValidationSchema}
@@ -142,24 +172,121 @@ const DetailsTab: React.FC<DetailsTabProps> = ({ course, courseId }) => {
               <ErrorMessage name="description" component="p" className="mt-2 text-sm text-error" />
             </div>
 
-            {/* Price */}
-            <div>
-              <label className="block text-sm font-semibold text-on-surface mb-2">Price (₹) *</label>
-              <div className="relative max-w-xs">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                  <span className="text-on-surface-variant">₹</span>
+            {/* Pricing Section Card */}
+            <div className="bg-[#131313] border border-[#262626] rounded-[12px] p-5 space-y-6">
+              <h2 className="text-lg font-semibold text-white mb-2">Pricing & Discount</h2>
+              
+              {/* Base Price */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-300 mb-2">Base Price (₹) *</label>
+                <div className="relative max-w-xs">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <span className="text-gray-500">₹</span>
+                  </div>
+                  <Field
+                    name="price"
+                    type="number"
+                    min="0"
+                    className={cn(
+                      'w-full pl-8 pr-4 py-3 rounded-xl bg-[#0a0a0a] border transition-all focus:outline-none focus:ring-2 focus:ring-[#ff6b00]/20',
+                      errors.price && touched.price ? 'border-red-500 text-red-500' : 'border-[#333] text-white focus:border-[#ff6b00]'
+                    )}
+                  />
                 </div>
-                <Field
-                  name="price"
-                  type="number"
-                  min="0"
-                  className={cn(
-                    'w-full pl-8 pr-4 py-3 rounded-xl bg-background border transition-all focus:outline-none focus:ring-2 focus:ring-primary-container/20',
-                    errors.price && touched.price ? 'border-error text-error' : 'border-surface-border text-on-surface'
-                  )}
-                />
+                <ErrorMessage name="price" component="p" className="mt-2 text-sm text-red-500" />
               </div>
-              <ErrorMessage name="price" component="p" className="mt-2 text-sm text-error" />
+
+              {/* Course Discount */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-300 mb-2">Discount Percentage</label>
+                <div className="flex items-center gap-4 max-w-lg">
+                  <Field
+                    type="range"
+                    name="discountPercent"
+                    min="0"
+                    max="100"
+                    step="5"
+                    className="flex-1 accent-[#ff6b00]"
+                  />
+                  <div className="w-20">
+                    <Field
+                      type="number"
+                      name="discountPercent"
+                      min="0"
+                      max="100"
+                      className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#333] text-white focus:outline-none focus:border-[#ff6b00]"
+                    />
+                  </div>
+                </div>
+                {values.discountPercent > 0 && (
+                  <p className="mt-2 text-sm text-gray-400">
+                    Students pay ₹{Math.round(values.price * (1 - values.discountPercent / 100))} (₹{Math.round(values.price * (values.discountPercent / 100))} off)
+                  </p>
+                )}
+                <ErrorMessage name="discountPercent" component="p" className="mt-2 text-sm text-red-500" />
+              </div>
+
+              {/* Discount Expiry */}
+              {values.discountPercent > 0 && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-300 mb-2">Discount Expires On (optional)</label>
+                  <Field
+                    type="datetime-local"
+                    name="discountExpiresAt"
+                    className="w-full max-w-xs px-4 py-3 rounded-xl bg-[#0a0a0a] border border-[#333] text-white focus:outline-none focus:border-[#ff6b00]"
+                  />
+                  <p className="mt-2 text-xs text-gray-500">Leave empty for permanent discount</p>
+                </div>
+              )}
+
+              {/* Tax */}
+              <div>
+                <label className="block text-sm font-semibold text-gray-300 mb-2">Tax / GST Percentage</label>
+                <Field
+                  as="select"
+                  name="taxPercent"
+                  className="w-full max-w-xs px-4 py-3 rounded-xl bg-[#0a0a0a] border border-[#333] text-white focus:outline-none focus:border-[#ff6b00]"
+                >
+                  <option value="0">0%</option>
+                  <option value="5">5%</option>
+                  <option value="12">12%</option>
+                  <option value="18">18% (Default)</option>
+                  <option value="28">28%</option>
+                </Field>
+                <p className="mt-2 text-xs text-gray-500">Applied on final price after discounts</p>
+              </div>
+
+              {/* LIVE PRICE PREVIEW card */}
+              <div className="bg-[#0a0a0a] border border-[#ff6b00]/30 rounded-lg p-4 max-w-md font-mono text-sm space-y-2 mt-4">
+                <div className="flex justify-between text-gray-400">
+                  <span>Base price:</span>
+                  <span>₹{values.price || 0}</span>
+                </div>
+                {values.discountPercent > 0 && (
+                  <div className="flex justify-between text-green-400">
+                    <span>Discount ({values.discountPercent}%):</span>
+                    <span>- ₹{Math.round((values.price || 0) * (values.discountPercent / 100))}</span>
+                  </div>
+                )}
+                {(values.discountPercent > 0) && (
+                  <div className="flex justify-between text-gray-400 pt-1 border-t border-[#333]">
+                    <span>After discount:</span>
+                    <span>₹{Math.round((values.price || 0) * (1 - values.discountPercent / 100))}</span>
+                  </div>
+                )}
+                {values.taxPercent > 0 && (
+                  <div className="flex justify-between text-gray-400">
+                    <span>GST ({values.taxPercent}%):</span>
+                    <span>+ ₹{Math.round(Math.round((values.price || 0) * (1 - values.discountPercent / 100)) * (values.taxPercent / 100))}</span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center text-white pt-2 border-t border-[#333] mt-2">
+                  <span>Student pays:</span>
+                  <span className="text-[#ff6b00] font-bold text-base">
+                    ₹{Math.round(Math.round((values.price || 0) * (1 - values.discountPercent / 100)) * (1 + values.taxPercent / 100))}
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* Thumbnail */}
@@ -214,9 +341,21 @@ const LessonItem = ({ lesson, courseId }: { lesson: ILesson; courseId: string })
   const [isExpanded, setIsExpanded] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [title, setTitle] = useState(lesson.title);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isVideoRemoveModalOpen, setIsVideoRemoveModalOpen] = useState(false);
+
+  // Rich upload tracking state
+  type UploadStats = {
+    percent: number;
+    loaded: number;     // bytes uploaded so far
+    total: number;      // total file size in bytes
+    speed: number;      // bytes/sec
+    eta: number;        // seconds remaining
+    fileName: string;
+    phase: 'uploading' | 'processing'; // uploading = to server, processing = Bunny encoding
+  };
+  const [uploadStats, setUploadStats] = useState<UploadStats | null>(null);
+  const uploadStartRef = React.useRef<number>(0);
 
   // New states for content and resources
   const [content, setContent] = useState(lesson.content || '');
@@ -224,6 +363,8 @@ const LessonItem = ({ lesson, courseId }: { lesson: ILesson; courseId: string })
   const [newResourceTitle, setNewResourceTitle] = useState('');
   const [newResourceUrl, setNewResourceUrl] = useState('');
   const [isSavingDetails, setIsSavingDetails] = useState(false);
+
+  const hasChanges = content !== (lesson.content || '') || JSON.stringify(resources) !== JSON.stringify(lesson.resources || []);
 
   const updateMutation = useMutation({
     mutationFn: (data: Partial<ILesson>) => adminUpdateLesson(lesson._id, data),
@@ -244,15 +385,37 @@ const LessonItem = ({ lesson, courseId }: { lesson: ILesson; courseId: string })
   });
 
   const uploadMutation = useMutation({
-    mutationFn: (file: File) => adminUploadLessonVideo(lesson._id, file, setUploadProgress),
+    mutationFn: (file: File) => {
+      uploadStartRef.current = Date.now();
+      setUploadStats({ percent: 0, loaded: 0, total: file.size, speed: 0, eta: 0, fileName: file.name, phase: 'uploading' });
+
+      return adminUploadLessonVideo(lesson._id, file, (progressEvent) => {
+        if (!progressEvent.total) return;
+        const loaded = progressEvent.loaded;
+        const total = progressEvent.total;
+        const percent = Math.round((loaded * 100) / total);
+
+        // Browser → server transfer done: switch to "server → Bunny" processing phase
+        if (percent >= 100) {
+          setUploadStats(prev => prev ? { ...prev, percent: 100, phase: 'processing' } : null);
+          return;
+        }
+
+        const elapsed = (Date.now() - uploadStartRef.current) / 1000;
+        const speed = elapsed > 0 ? loaded / elapsed : 0;
+        const eta = speed > 0 ? Math.round((total - loaded) / speed) : 0;
+        setUploadStats({ percent, loaded, total, speed, eta, fileName: file.name, phase: 'uploading' });
+      });
+    },
     onSuccess: () => {
+      // Backend finished uploading to Bunny — all done
       queryClient.invalidateQueries({ queryKey: ['course', courseId] });
-      toast.success('Video uploaded successfully');
-      setUploadProgress(null);
+      toast.success('Video uploaded — Bunny is processing it now');
+      setUploadStats(null);
     },
     onError: () => {
       toast.error('Failed to upload video');
-      setUploadProgress(null);
+      setUploadStats(null);
     },
   });
 
@@ -398,9 +561,10 @@ const LessonItem = ({ lesson, courseId }: { lesson: ILesson; courseId: string })
                   <div className="flex flex-col sm:flex-row gap-4 items-start p-3 border border-surface-border rounded-xl bg-background shadow-sm">
                     <div className="relative w-full sm:w-48 aspect-video rounded-lg overflow-hidden bg-black border border-surface-border group/video shadow-sm">
                       <img 
-                        src={lesson.videoUrl.replace(/\.[^/.]+$/, ".jpg")} 
+                        src={lesson.videoUrl.replace(/\/[^/]+$/, '/thumbnail.jpg')}
                         alt="Video thumbnail" 
                         className="w-full h-full object-cover opacity-80"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                       />
                       <div className="absolute inset-0 flex items-center justify-center">
                         <div className="w-8 h-8 rounded-full bg-primary-container/90 flex items-center justify-center shadow-[0_0_15px_rgba(255,107,0,0.4)]">
@@ -439,11 +603,11 @@ const LessonItem = ({ lesson, courseId }: { lesson: ILesson; courseId: string })
                       type="file"
                       accept="video/mp4,video/webm,video/quicktime,video/x-matroska,.mkv"
                       className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                      disabled={uploadProgress !== null}
+                      disabled={uploadStats !== null}
                       onChange={(e) => {
                         if (e.target.files && e.target.files.length > 0) {
-                          uploadMutation.mutate(e.target.files[0]);
-                        }
+                            uploadMutation.mutate(e.target.files[0]);
+                          }
                       }}
                     />
                     <div className="w-10 h-10 rounded-full bg-surface-dim flex items-center justify-center text-on-surface-variant group-hover/upload:text-primary-container group-hover/upload:bg-primary-container/10 transition-colors">
@@ -456,13 +620,60 @@ const LessonItem = ({ lesson, courseId }: { lesson: ILesson; courseId: string })
                   </div>
                 )}
                 
-                {/* Progress Bar */}
-                {uploadProgress !== null && (
-                  <div className="w-full bg-surface-border rounded-full h-1.5 mt-3 overflow-hidden">
-                    <div
-                      className="bg-primary-container h-1.5 transition-all duration-300"
-                      style={{ width: `${uploadProgress}%` }}
-                    />
+              {/* Upload progress panel */}
+                {uploadStats !== null && (
+                  <div className="mt-3 p-4 rounded-xl bg-surface border border-surface-border space-y-3">
+                    {uploadStats.phase === 'uploading' ? (
+                      <>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Film className="w-4 h-4 text-primary-container shrink-0" />
+                            <span className="text-xs font-medium text-on-surface truncate max-w-[160px]">{uploadStats.fileName}</span>
+                          </div>
+                          <span className="text-xs font-bold text-primary-container tabular-nums">{uploadStats.percent}%</span>
+                        </div>
+
+                        {/* Progress bar */}
+                        <div className="w-full bg-surface-border rounded-full h-2 overflow-hidden">
+                          <div
+                            className="bg-gradient-to-r from-primary-container to-orange-400 h-2 transition-all duration-300 rounded-full"
+                            style={{ width: `${uploadStats.percent}%` }}
+                          />
+                        </div>
+
+                        {/* Stats row */}
+                        <div className="flex items-center justify-between text-[11px] text-on-surface-variant tabular-nums">
+                          <span>
+                            {(uploadStats.loaded / (1024 * 1024)).toFixed(1)} MB
+                            {' / '}
+                            {(uploadStats.total / (1024 * 1024)).toFixed(1)} MB
+                          </span>
+                          <span className="flex items-center gap-3">
+                            <span title="Upload speed">
+                              ↑ {uploadStats.speed >= 1024 * 1024
+                                ? `${(uploadStats.speed / (1024 * 1024)).toFixed(1)} MB/s`
+                                : `${(uploadStats.speed / 1024).toFixed(0)} KB/s`}
+                            </span>
+                            {uploadStats.eta > 0 && (
+                              <span title="Estimated time remaining">
+                                ⏱ {uploadStats.eta >= 60
+                                  ? `${Math.floor(uploadStats.eta / 60)}m ${uploadStats.eta % 60}s`
+                                  : `${uploadStats.eta}s`}
+                              </span>
+                            )}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      /* Processing phase */
+                      <div className="flex items-center gap-3">
+                        <div className="w-5 h-5 border-2 border-primary-container/30 border-t-primary-container rounded-full animate-spin shrink-0" />
+                        <div>
+                          <p className="text-xs font-semibold text-on-surface">Processing on Bunny Stream…</p>
+                          <p className="text-[11px] text-on-surface-variant mt-0.5">HLS encoding in progress. Duration will update automatically.</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -476,7 +687,6 @@ const LessonItem = ({ lesson, courseId }: { lesson: ILesson; courseId: string })
                   <TipTapEditor
                     value={content}
                     onChange={setContent}
-                    placeholder="Write a description for this lesson..."
                   />
                 </div>
 
@@ -534,7 +744,7 @@ const LessonItem = ({ lesson, courseId }: { lesson: ILesson; courseId: string })
                 <div className="mt-4 pt-4 border-t border-surface-border flex justify-end">
                   <button
                     onClick={handleSaveDetails}
-                    disabled={isSavingDetails}
+                    disabled={isSavingDetails || !hasChanges}
                     className="px-4 py-2 bg-primary-container hover:bg-primary-container/90 text-white rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     {isSavingDetails ? (

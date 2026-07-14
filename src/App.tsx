@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import ProtectedRoute from './components/routing/ProtectedRoute';
 import AdminRoute from './components/routing/AdminRoute';
+import { AuthInitializer } from './components/routing/AuthInitializer';
 
 import { PublicLayout } from './components/layout/PublicLayout';
 import { DashboardLayout } from './components/layout/DashboardLayout';
@@ -27,10 +28,12 @@ import CourseDetailPage from "./pages/courses/CourseDetailPage";
 // Payment
 import PaymentSuccessPage from "./pages/payment/PaymentSuccessPage";
 import PaymentFailedPage from "./pages/payment/PaymentFailedPage";
+import CheckoutPage from "./pages/checkout/CheckoutPage";
 
 // Dashboard
 import StudentDashboard from "./pages/dashboard/StudentDashboard";
 import MyCoursesPage from "./pages/dashboard/MyCoursesPage";
+import BrowseCoursesPage from "./pages/dashboard/BrowseCoursesPage";
 import ProfilePage from "./pages/dashboard/ProfilePage";
 import PurchaseHistoryPage from "./pages/dashboard/PurchaseHistoryPage";
 
@@ -44,6 +47,8 @@ import CreateCoursePage from "./pages/admin/CreateCoursePage";
 import EditCoursePage from "./pages/admin/EditCoursePage";
 import StudentsPage from "./pages/admin/StudentsPage";
 import EnrollmentsPage from "./pages/admin/EnrollmentsPage";
+import CouponsPage from "./pages/admin/CouponsPage";
+import CouponFormPage from "./pages/admin/CouponFormPage";
 import AdminPaymentsPage from "./pages/admin/AdminPaymentsPage";
 import AdminSettingsPage from "./pages/admin/AdminSettingsPage";
 
@@ -71,8 +76,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <ToastContainer />
-        <Routes>
+        <AuthInitializer>
+          <ToastContainer />
+          <Routes>
           {/* Public Routes - Wrapped in PublicLayout (Shows Navbar & Footer) */}
           <Route element={<PublicLayout />}>
             <Route path="/" element={<Home />} />
@@ -97,9 +103,13 @@ function App() {
 
           {/* Student Routes - ProtectedRoute */}
           <Route element={<ProtectedRoute />}>
+            {/* Standalone Protected Routes */}
+            <Route path="/checkout/:courseSlug" element={<CheckoutPage />} />
+
             <Route element={<DashboardLayout />}>
               <Route path="/dashboard" element={<StudentDashboard />} />
               <Route path="/dashboard/my-courses" element={<MyCoursesPage />} />
+              <Route path="/dashboard/courses" element={<BrowseCoursesPage />} />
               <Route path="/dashboard/profile" element={<ProfilePage />} />
               <Route path="/dashboard/purchases" element={<PurchaseHistoryPage />} />
             </Route>
@@ -114,11 +124,15 @@ function App() {
               <Route path="/admin/courses/:id/edit" element={<EditCoursePage />} />
               <Route path="/admin/students" element={<StudentsPage />} />
               <Route path="/admin/enrollments" element={<EnrollmentsPage />} />
+              <Route path="/admin/coupons" element={<CouponsPage />} />
+              <Route path="/admin/coupons/create" element={<CouponFormPage />} />
+              <Route path="/admin/coupons/:id/edit" element={<CouponFormPage />} />
               <Route path="/admin/payments" element={<AdminPaymentsPage />} />
               <Route path="/admin/settings" element={<AdminSettingsPage />} />
             </Route>
           </Route>
         </Routes>
+        </AuthInitializer>
       </BrowserRouter>
     </QueryClientProvider>
   );

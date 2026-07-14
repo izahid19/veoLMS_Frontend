@@ -41,7 +41,10 @@ axiosInstance.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Check if error is 401, not a retry already, and NOT the refresh token or login endpoint
+    // Only attempt a token refresh when:
+    //   1. The server returned 401 (not authenticated)
+    //   2. We haven't already retried this exact request
+    //   3. This is not the refresh-token or login endpoint itself
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
@@ -51,9 +54,12 @@ axiosInstance.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        // Attempt to get a new access token
-        const refreshResponse = await axios.post(
-          `${API_BASE_URL}/auth/refresh-token`,
+        // ⚠️  Must use axiosInstance (not bare axios) so the request
+        //     interceptor attaches the x-csrf-token header from the cookie.
+        //     Using bare axios skips that interceptor → always 403 CSRF error
+        //     → caught here → clearAuth → AuthInitializer re-fires → infinite loop.
+        const refreshResponse = await axiosInstance.post(
+          '/auth/refresh-token',
           {},
           { withCredentials: true }
         );
@@ -61,7 +67,7 @@ axiosInstance.interceptors.response.use(
         const newAccessToken = refreshResponse.data?.accessToken;
 
         if (refreshResponse.data?.success && newAccessToken) {
-          // Keep the existing user in the state, just update the token
+          // Update store with new token while preserving the existing user
           const currentUser = useAuthStore.getState().user;
           if (currentUser) {
             useAuthStore.getState().setAuth(newAccessToken, currentUser);
@@ -72,9 +78,12 @@ axiosInstance.interceptors.response.use(
           return axiosInstance(originalRequest);
         }
       } catch (refreshError) {
-        // If refresh fails, clear the auth state and redirect to login
+        // Refresh genuinely failed (expired refresh token, revoked session, etc.)
+        // Clear auth state and redirect once — do NOT loop.
         useAuthStore.getState().clearAuth();
-        window.location.href = '/login';
+        if (!window.location.pathname.includes('/login')) {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       }
     }

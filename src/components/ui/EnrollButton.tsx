@@ -1,13 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
 import { Play, Loader2 } from 'lucide-react';
-
-import { createOrder, verifyPayment, handleFailedPayment } from '../../crud/payment.crud';
-import { getCourseBySlug } from '../../crud/course.crud';
-import { initiateRazorpayCheckout } from '../../Utils/razorpay';
 import { toast } from '../../Utils/toast';
-import { formatPrice, buildPlayerUrl } from '../../Utils/helpers';
+import { buildPlayerUrl } from '../../Utils/helpers';
+import { getCourseBySlug } from '../../crud/course.crud';
+import { createOrder, verifyPayment } from '../../crud/payment.crud';
+import { useQueryClient } from '@tanstack/react-query';
 
 interface EnrollButtonProps {
   courseId: string;
@@ -29,7 +27,6 @@ export default function EnrollButton({
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
-  const currentOrderIdRef = useRef<string | null>(null);
 
   // 1. If enrolled -> Continue Learning
   const handleContinueLearning = async () => {
@@ -75,11 +72,11 @@ export default function EnrollButton({
     );
   }
 
-  // 2. If not logged in -> Redirect to login
+  // 2. If not logged in -> Redirect to login with checkout redirect
   if (!isLoggedIn) {
     return (
       <button
-        onClick={() => navigate('/login', { state: { from: `/courses/${courseSlug}` } })}
+        onClick={() => navigate(`/login?redirect=/checkout/${courseSlug}`)}
         className="w-full bg-[#ff6b00] hover:bg-[#e65a00] text-white font-['Plus_Jakarta_Sans'] font-semibold py-3.5 rounded-[8px] transition-colors mb-4 flex justify-center items-center"
       >
         Login to Enroll
@@ -87,118 +84,45 @@ export default function EnrollButton({
     );
   }
 
-  // 3. Free Course vs Paid Course
   const handleEnrollClick = async () => {
-    setIsLoading(true);
-    try {
-      if (price === 0) {
-        // Free course flow
+    if (price === 0) {
+      setIsLoading(true);
+      try {
         const orderRes = await createOrder(courseId);
-        if (orderRes.success && orderRes.data) {
+        if (orderRes.data?.orderId) {
           const verifyRes = await verifyPayment({
             razorpayOrderId: orderRes.data.orderId,
             razorpayPaymentId: 'FREE_COURSE_PAYMENT',
-            razorpaySignature: 'FREE_COURSE_SIGNATURE',
-            courseId,
+            razorpaySignature: 'NONE',
+            courseId: courseId,
           });
           if (verifyRes.success) {
-            await queryClient.invalidateQueries({ queryKey: ['enrollment-check', courseId] });
-            await queryClient.invalidateQueries({ queryKey: ['my-enrollments'] });
-            await queryClient.invalidateQueries({ queryKey: ['enrolled-course', courseSlug] });
-            queryClient.removeQueries({ queryKey: ['enrolled-course', courseSlug] });
-            
-            if (firstLessonId) {
-              navigate(buildPlayerUrl(courseSlug, firstLessonId));
-            } else {
-              navigate(`/courses/${courseSlug}`);
-            }
+            queryClient.invalidateQueries({ queryKey: ['enrollment-check', courseId] });
+            queryClient.invalidateQueries({ queryKey: ['my-enrollments'] });
+            toast.success('Successfully enrolled in the free course!');
+            navigate(`/learn/${courseSlug}`);
+            return;
           }
         }
-      } else {
-        // Paid course flow (Razorpay)
-        const orderRes = await createOrder(courseId);
-        if (orderRes.success && orderRes.data) {
-          const { keyId, amount, currency, courseName, orderId } = orderRes.data;
-          currentOrderIdRef.current = orderId;
-
-          await initiateRazorpayCheckout({
-            key: keyId,
-            amount: amount,
-            currency: currency,
-            name: 'VeoLMS',
-            description: courseName,
-            order_id: orderId,
-            theme: { color: '#ff6b00' },
-            handler: async (paymentResponse: any) => {
-              try {
-                setIsLoading(true);
-                const verifyRes = await verifyPayment({
-                  razorpayOrderId: paymentResponse.razorpay_order_id,
-                  razorpayPaymentId: paymentResponse.razorpay_payment_id,
-                  razorpaySignature: paymentResponse.razorpay_signature,
-                  courseId,
-                });
-                
-                if (verifyRes.success) {
-                  await queryClient.invalidateQueries({ queryKey: ['enrollment-check', courseId] });
-                  await queryClient.invalidateQueries({ queryKey: ['my-enrollments'] });
-                  await queryClient.invalidateQueries({ queryKey: ['enrolled-course', courseSlug] });
-                  queryClient.removeQueries({ queryKey: ['enrolled-course', courseSlug] });
-                  
-                  if (firstLessonId) {
-                    navigate(buildPlayerUrl(courseSlug, firstLessonId));
-                  } else {
-                    navigate(`/courses/${courseSlug}`);
-                  }
-                  toast.success('Successfully enrolled!');
-                }
-              } catch (error: any) {
-                console.error('Payment verification failed:', error);
-                toast.error(error?.message || 'Payment verification failed.');
-              } finally {
-                setIsLoading(false);
-              }
-            },
-            modal: {
-              ondismiss: async () => {
-                try {
-                  if (currentOrderIdRef.current) {
-                    await handleFailedPayment(currentOrderIdRef.current);
-                  }
-                } catch (e) {}
-                setIsLoading(false);
-                navigate('/payment/failed', { 
-                  state: { courseSlug: courseSlug } 
-                });
-              },
-            },
-          });
-          // Note: we don't set loading false here because the modal stays open.
-        }
+        toast.error('Failed to enroll in free course');
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || 'Enrollment failed');
       }
-    } catch (error) {
-      console.error('Enrollment error:', error);
-      toast.error('Failed to initiate enrollment.');
       setIsLoading(false);
+    } else {
+      navigate(`/checkout/${courseSlug}`);
     }
   };
 
+  // 3. Logged in and not enrolled -> Go to checkout or enroll directly if free
   return (
     <button
       onClick={handleEnrollClick}
       disabled={isLoading}
-      className="w-full bg-[#ff6b00] hover:bg-[#e65a00] text-white font-['Plus_Jakarta_Sans'] font-semibold py-3.5 rounded-[8px] transition-colors mb-4 disabled:opacity-50 flex justify-center items-center gap-2"
+      className="w-full bg-[#ff6b00] hover:bg-[#e65a00] text-white font-['Plus_Jakarta_Sans'] font-semibold py-3.5 rounded-[8px] transition-colors mb-4 flex justify-center items-center disabled:opacity-50 gap-2"
     >
-      {isLoading ? (
-        <>
-          <Loader2 className="w-5 h-5 animate-spin" />
-          Processing...
-        </>
-      ) : price === 0 ? (
-        'Enroll Free'
-      ) : (
-        `Enroll Now — ${formatPrice(price)}`
-      )}
+      {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
+      {price === 0 ? (isLoading ? 'Enrolling...' : 'Enroll Free') : 'Enroll Now'}
     </button>
   );
 }

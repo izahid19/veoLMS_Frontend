@@ -1,5 +1,39 @@
 // ─── Lesson ───────────────────────────────────────────────────────────────────
 
+export interface IPriceBreakdown {
+  originalPrice: number;
+  courseDiscount: number;
+  discountedPrice: number;
+  couponDiscount: number;
+  taxableAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  discountPercent: number;
+  taxPercent: number;
+  isFree: boolean;
+  discountExpiresAt?: string | null;
+}
+
+export interface ICoupon {
+  _id: string;
+  code: string;
+  discountType: 'percentage' | 'flat';
+  discountValue: number;
+  applicableCourses: ICourse[];
+  maxUses: number | null;
+  usedCount: number;
+  expiresAt: string | null;
+  isActive: boolean;
+  minOrderAmount: number;
+  createdAt: string;
+}
+
+export interface ICouponValidateResponse {
+  valid: boolean;
+  coupon: ICoupon;
+  priceBreakdown: IPriceBreakdown;
+}
+
 export interface ILesson {
   _id: string;
   title: string;
@@ -48,6 +82,12 @@ export interface ICourse {
   totalLessons: number;
   totalDuration: number;
   createdAt: string;
+  discountPercent: number;
+  discountExpiresAt: string | null;
+  taxPercent: number;
+  effectivePrice?: number;
+  discountedPrice?: number;
+  priceBreakdown?: IPriceBreakdown;
 }
 
 // ─── Course Detail (with curriculum) ─────────────────────────────────────────
@@ -149,4 +189,5 @@ export interface ICreateOrderResponse {
   courseName: string;
   courseId: string;
   keyId: string;
+  priceBreakdown?: IPriceBreakdown;
 }

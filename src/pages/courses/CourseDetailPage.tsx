@@ -6,6 +6,7 @@ import { Play, Lock, BookOpen, Clock, Users, ChevronDown, ChevronUp } from 'luci
 import { getCourseBySlug } from '../../crud/course.crud';
 import { checkEnrollment } from '../../crud/enrollment.crud';
 import { formatPrice, formatDuration, cn, buildPlayerUrl } from '../../Utils/helpers';
+import { isDiscountActive, getDiscountTimeLeft } from '../../Utils/price';
 import { courseDetailSeo } from '../../seo/seo.courses.config';
 import useAuthStore from '../../store/authStore';
 import type { ICourseDetail, ISection, ILesson } from '../../types/course.types';
@@ -23,7 +24,12 @@ export default function CourseDetailPage() {
     queryKey: ['course', slug],
     queryFn: async () => {
       const res = await getCourseBySlug(slug as string);
-      return res.data.data;
+      const data = res.data.data;
+      return {
+        ...data.course,
+        sections: data.sections,
+        priceBreakdown: data.priceBreakdown
+      };
     },
     enabled: !!slug,
   });
@@ -102,7 +108,7 @@ export default function CourseDetailPage() {
   return (
     <div className="min-h-screen bg-[#050505] pt-24 pb-16 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row gap-8 lg:gap-12 relative">
-        
+
         {/* LEFT COLUMN (70%) */}
         <div className="w-full lg:w-[70%]">
           <h1 className="font-['Plus_Jakarta_Sans'] font-bold text-[36px] text-white leading-tight mb-6">
@@ -121,9 +127,9 @@ export default function CourseDetailPage() {
               <div className="w-full h-full bg-gradient-to-br from-[#1a1a1a] to-[#262626]" />
             )}
           </div>
-          
+
           {/* Description (rendered safely if it contains HTML, but for now we assume plain text or use dangerouslySetInnerHTML if rich text) */}
-          <div 
+          <div
             className="font-['Inter'] text-[#a3a3a3] text-[16px] mb-8 leading-relaxed prose prose-invert max-w-none"
             dangerouslySetInnerHTML={{ __html: course.description }}
           />
@@ -178,7 +184,7 @@ export default function CourseDetailPage() {
                       const isAccessible = lesson.isFree || isEnrolled;
                       return (
                         <div key={lesson._id} className="flex flex-col border-b border-[#262626] last:border-0">
-                          <div 
+                          <div
                             className={cn(
                               "flex items-center justify-between p-4 group transition-colors",
                               isAccessible ? "hover:bg-[#131313] cursor-pointer" : "opacity-75 cursor-default"
@@ -224,10 +230,40 @@ export default function CourseDetailPage() {
 
 
             {/* Price */}
-            <div className="mb-6">
-              <div className="font-['Plus_Jakarta_Sans'] font-bold text-white text-[28px]">
-                {course.price > 0 ? formatPrice(course.price) : <span className="text-[#ff6b00]">Free</span>}
-              </div>
+            <div className="mb-6 flex flex-col">
+              {course.priceBreakdown?.isFree || course.price === 0 ? (
+                <div className="font-['Plus_Jakarta_Sans'] font-bold text-[#ff6b00] text-[32px]">
+                  Free
+                </div>
+              ) : isDiscountActive(course.discountPercent, course.discountExpiresAt) ? (
+                <>
+                  <div className="flex items-center gap-3">
+                    <span className="font-['Plus_Jakarta_Sans'] font-bold text-[#ff6b00] text-[32px]">
+                      {formatPrice(course.priceBreakdown?.discountedPrice || 0)}
+                    </span>
+                    <span className="font-['Plus_Jakarta_Sans'] text-[#a3a3a3] text-[20px] line-through">
+                      {formatPrice(course.price)}
+                    </span>
+                    <span className="bg-[#ff6b00] text-white text-[12px] font-bold px-2.5 py-1 rounded-[8px] uppercase tracking-wider">
+                      -{course.discountPercent}% OFF
+                    </span>
+                  </div>
+                  {course.discountExpiresAt && (
+                    <div className="text-[#ff6b00] text-sm mt-1">
+                      ⏱ Offer ends in {getDiscountTimeLeft(course.discountExpiresAt)}
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="font-['Plus_Jakarta_Sans'] font-bold text-white text-[32px]">
+                  {formatPrice(course.price)}
+                </div>
+              )}
+              {course.price > 0 && course.taxPercent > 0 && (
+                <p className="text-[#a3a3a3] text-[12px] mt-2">
+                  Price inclusive of {course.taxPercent}% GST
+                </p>
+              )}
             </div>
 
             {/* Actions */}
@@ -239,6 +275,9 @@ export default function CourseDetailPage() {
               isLoggedIn={isAuthenticated}
               firstLessonId={course.sections?.[0]?.lessons?.[0]?._id}
             />
+            <div className="mt-3 flex items-center justify-center text-[#a3a3a3] text-[12px]">
+              ✓ 30-day money-back guarantee
+            </div>
 
             {/* Bullet Points */}
             <div className="mt-8 border-t border-[#262626] pt-6">

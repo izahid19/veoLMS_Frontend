@@ -57,7 +57,12 @@ export default function CoursePlayerPage() {
     queryKey: ['course-curriculum', courseSlug],
     queryFn: async () => {
       const res = await getCourseBySlug(courseSlug as string);
-      return res.data.data;
+      const data = res.data.data;
+      return {
+        ...data.course,
+        sections: data.sections,
+        priceBreakdown: data.priceBreakdown
+      };
     },
     retry: false,
     enabled: !!courseSlug && !isAuthLoading,
@@ -164,8 +169,131 @@ export default function CoursePlayerPage() {
   return (
     <div className="flex flex-col h-screen w-full bg-[#050505] overflow-hidden text-white font-['Inter']">
       <style>{`
-        :root {
-          --plyr-color-main: #ff6b00;
+        :root { --plyr-color-main: #ff6b00; }
+
+        /* ── Player sizing ──────────────────────────────── */
+        .plyr { height: 100% !important; width: 100% !important; font-family: 'Inter', sans-serif; }
+        .plyr__video-wrapper, .plyr__poster { height: 100% !important; width: 100% !important; }
+        video { object-fit: contain !important; }
+
+        /* ── Settings panel: YouTube-style floating card ── */
+        .plyr__menu__container {
+          background: rgba(18, 18, 18, 0.97) !important;
+          border: 1px solid rgba(255,255,255,0.07) !important;
+          border-radius: 12px !important;
+          box-shadow: 0 16px 48px rgba(0,0,0,0.75) !important;
+          backdrop-filter: blur(16px) !important;
+          -webkit-backdrop-filter: blur(16px) !important;
+          min-width: 240px !important;
+          padding: 6px 0 !important;
+          overflow: hidden !important;
+        }
+
+        /* ── Main menu items (Speed row, Quality row) ───── */
+        .plyr__menu__container [role="menuitem"] {
+          display: flex !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          width: 100% !important;
+          padding: 11px 16px !important;
+          font-size: 13.5px !important;
+          font-weight: 400 !important;
+          color: #e8e8e8 !important;
+          background: transparent !important;
+          border-radius: 0 !important;
+          transition: background 0.12s !important;
+          text-align: left !important;
+        }
+        .plyr__menu__container [role="menuitem"]:hover {
+          background: rgba(255,255,255,0.06) !important;
+        }
+
+        /* ── Current-value badge (right side of each row) ── */
+        .plyr__menu__container .plyr__menu__value {
+          color: #909090 !important;
+          font-size: 13px !important;
+          display: flex !important;
+          align-items: center !important;
+          gap: 2px !important;
+          margin-left: auto !important;
+          padding-left: 16px !important;
+        }
+        /* › arrow after value */
+        .plyr__menu__container [role="menuitem"] .plyr__menu__value::after {
+          content: '›' !important;
+          font-size: 18px !important;
+          line-height: 1 !important;
+          color: #666 !important;
+          margin-left: 6px !important;
+        }
+
+        /* ── Back button (top of sub-panels) ────────────── */
+        .plyr__menu__container .plyr__control--back {
+          display: flex !important;
+          align-items: center !important;
+          gap: 8px !important;
+          padding: 10px 16px !important;
+          font-size: 13px !important;
+          font-weight: 500 !important;
+          color: #a0a0a0 !important;
+          border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+          border-radius: 0 !important;
+          background: transparent !important;
+          width: 100% !important;
+          text-align: left !important;
+          margin-bottom: 4px !important;
+        }
+        .plyr__menu__container .plyr__control--back:hover {
+          color: #ffffff !important;
+          background: rgba(255,255,255,0.06) !important;
+        }
+
+        /* ── Quality / Speed radio items ─────────────────── */
+        .plyr__menu__container [role="menuitemradio"] {
+          display: flex !important;
+          align-items: center !important;
+          padding: 9px 16px 9px 14px !important;
+          font-size: 13.5px !important;
+          color: #d4d4d4 !important;
+          border-radius: 0 !important;
+          background: transparent !important;
+          transition: background 0.12s !important;
+          width: 100% !important;
+          text-align: left !important;
+          gap: 10px !important;
+        }
+        .plyr__menu__container [role="menuitemradio"]:hover {
+          background: rgba(255,255,255,0.06) !important;
+          color: #ffffff !important;
+        }
+
+        /* Checkmark for selected (mimics YouTube ✓) */
+        .plyr__menu__container [role="menuitemradio"]::before {
+          content: '' !important;
+          display: inline-block !important;
+          width: 16px !important;
+          height: 16px !important;
+          flex-shrink: 0 !important;
+        }
+        .plyr__menu__container [role="menuitemradio"][aria-checked="true"] {
+          color: #ffffff !important;
+        }
+        .plyr__menu__container [role="menuitemradio"][aria-checked="true"]::before {
+          content: '✓' !important;
+          color: #ffffff !important;
+          font-size: 14px !important;
+          font-weight: 700 !important;
+          line-height: 16px !important;
+        }
+
+        /* ── Z-index: always above sidebar ──────────────── */
+        .plyr__menu { z-index: 50 !important; }
+
+        /* ── Dividers between groups ─────────────────────── */
+        .plyr__menu__container [role="menu"] + [role="menu"] {
+          border-top: 1px solid rgba(255,255,255,0.06) !important;
+          padding-top: 4px !important;
+          margin-top: 4px !important;
         }
       `}</style>
       
@@ -199,8 +327,11 @@ export default function CoursePlayerPage() {
         {/* ─── RIGHT MAIN AREA (PLAYER) ─────────────────────────────────────── */}
         <main className="flex-1 overflow-y-auto bg-[#050505] relative custom-scrollbar">
           {isLoading || !currentLesson ? (
-            <div className="max-w-[900px] mx-auto p-6 space-y-6 animate-pulse mt-8">
-              <div className="w-full aspect-video bg-[#131313] rounded-[12px] border border-[#262626]" />
+            <div className="w-full flex flex-col items-center px-4 sm:px-8 md:px-12 pt-6 space-y-6 animate-pulse mt-8">
+              <div 
+                className="w-full bg-[#131313] rounded-[12px] border border-[#262626]" 
+                style={{ aspectRatio: '16/9', maxHeight: '75vh', maxWidth: 'calc(75vh * 16 / 9)' }}
+              />
               <div className="w-2/3 h-10 bg-[#131313] rounded-lg" />
               <div className="w-1/3 h-5 bg-[#131313] rounded-lg" />
             </div>

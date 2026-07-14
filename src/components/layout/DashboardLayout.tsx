@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { LayoutDashboard, BookOpen, User, CreditCard, LogOut, ChevronLeft, ChevronRight, LifeBuoy } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Compass, User, CreditCard, LogOut, ChevronLeft, ChevronRight, LifeBuoy } from 'lucide-react';
 import { toast } from '../../Utils/toast';
 
 import useAuthStore from '../../store/authStore';
@@ -30,10 +30,11 @@ export const DashboardLayout = () => {
   };
 
   const navLinks = [
-    { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
-    { name: 'My Courses', path: '/dashboard/my-courses', icon: BookOpen },
-    { name: 'Purchase History', path: '/dashboard/purchases', icon: CreditCard },
-    { name: 'Profile Settings', path: '/dashboard/profile', icon: User },
+    { name: 'Dashboard',        path: '/dashboard',           icon: LayoutDashboard },
+    { name: 'My Courses',       path: '/dashboard/my-courses', icon: BookOpen },
+    { name: 'All Courses',      path: '/dashboard/courses',    icon: Compass },
+    { name: 'Purchase History', path: '/dashboard/purchases',  icon: CreditCard },
+    { name: 'Profile Settings', path: '/dashboard/profile',    icon: User },
   ];
 
   const getInitials = () => {

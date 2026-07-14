@@ -1,8 +1,12 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PlayCircle, CheckCircle, ChevronLeft, ChevronRight, Loader2, FileText, Link2, ExternalLink, Lock, AlertCircle } from 'lucide-react';
+import {
+  PlayCircle, CheckCircle, ChevronLeft, ChevronRight,
+  Loader2, FileText, Link2, ExternalLink, Lock, AlertCircle,
+} from 'lucide-react';
 import { Plyr } from 'plyr-react';
 import 'plyr-react/plyr.css';
+import Hls from 'hls.js';
 
 import { updateProgress } from '../../../crud/progress.crud';
 import { toast } from '../../../Utils/toast';
@@ -36,11 +40,13 @@ export function VideoPlayer({
   completedLessons,
   onMarkComplete,
   refetchWatchData,
-  progressData
+  progressData,
 }: VideoPlayerProps) {
   const navigate = useNavigate();
   const playerRef = useRef<any>(null);
-  const lastUpdateRef = useRef<number>(Date.now()); // init to now so we don't save on first load
+  const hlsRef = useRef<Hls | null>(null);
+
+  const lastUpdateRef = useRef<number>(Date.now());
   const [isUpdatingProgress, setIsUpdatingProgress] = useState(false);
   const [hasError, setHasError] = useState(false);
   const [showNextOverlay, setShowNextOverlay] = useState(false);
@@ -49,6 +55,7 @@ export function VideoPlayer({
   const canAccess = watchData?.canAccess || false;
   const videoUrl = watchData?.lesson?.videoUrl || currentLesson.videoUrl;
   const isCompleted = completedLessons.has(lessonId);
+  const posterUrl = videoUrl ? videoUrl.replace(/\/[^/]+$/, '/thumbnail.jpg') : '';
 
   // Refs for callbacks
   const lessonIdRef = useRef(lessonId);
@@ -56,9 +63,9 @@ export function VideoPlayer({
   const courseSlugRef = useRef(courseSlug);
   const progressDataRef = useRef(progressData);
   const isAuthenticatedRef = useRef(isAuthenticated);
-
   const [isPlayerReady, setIsPlayerReady] = useState(false);
   const hasResumedRef = useRef(false);
+  const pauseCleanupRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     lessonIdRef.current = lessonId;
@@ -68,12 +75,79 @@ export function VideoPlayer({
     isAuthenticatedRef.current = isAuthenticated;
   }, [lessonId, nextLesson, courseSlug, progressData, isAuthenticated]);
 
-  // Reset resume state when lesson changes
+  // ─── HLS Setup ────────────────────────────────────────────────────────────────
+  //
+  // This effect wires hls.js into the Plyr video element and populates the
+  // quality switcher in the gear menu with the levels from Bunny's master playlist.
+  // Bunny automatically generates 360p / 480p / 720p / 1080p during encoding.
+  //
+  useEffect(() => {
+    if (!canAccess || !videoUrl) return;
+
+    // Destroy any previous HLS instance when lesson changes
+    if (hlsRef.current) {
+      hlsRef.current.destroy();
+      hlsRef.current = null;
+    }
+
+    const isHls = videoUrl.includes('.m3u8');
+
+    const initHls = () => {
+      const player = playerRef.current?.plyr;
+      if (!player) return;
+      const video = player.media as HTMLVideoElement;
+      if (!video) return;
+
+      if (isHls && Hls.isSupported()) {
+        const hls = new Hls({
+          startLevel: -1,       // Let Hls.js pick the best quality to start
+          enableWorker: true,
+          lowLatencyMode: false,
+        });
+
+        hlsRef.current = hls;
+        hls.loadSource(videoUrl);
+        hls.attachMedia(video);
+
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          // hls.js is loaded and manifest parsed — quality switching is now active.
+          // Plyr's gear menu was already pre-populated with [0,1080,720,480,360] at init.
+          // The onChange callback (below, in options prop) reads hlsRef to switch levels.
+        });
+
+        hls.on(Hls.Events.ERROR, (_, data) => {
+          if (data.fatal) {
+            if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+              hls.startLoad();
+            } else {
+              setHasError(true);
+            }
+          }
+        });
+
+      } else if (isHls && video.canPlayType('application/vnd.apple.mpegurl')) {
+        // Safari has native HLS support — just set the src
+        video.src = videoUrl;
+      }
+    };
+
+    // Delay slightly so Plyr has time to mount its <video> element into the DOM
+    const timer = setTimeout(initHls, 300);
+
+    return () => {
+      clearTimeout(timer);
+      if (hlsRef.current) {
+        hlsRef.current.destroy();
+        hlsRef.current = null;
+      }
+    };
+  }, [videoUrl, canAccess]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ─── Resume position ──────────────────────────────────────────────────────────
   useEffect(() => {
     hasResumedRef.current = false;
     setIsPlayerReady(false);
     return () => {
-      // Clean up pause listener when lesson changes or component unmounts
       if (pauseCleanupRef.current) {
         pauseCleanupRef.current();
         pauseCleanupRef.current = null;
@@ -81,52 +155,29 @@ export function VideoPlayer({
     };
   }, [lessonId]);
 
-  // Resume video when BOTH player is ready AND progressData has loaded
   useEffect(() => {
     if (!isAuthenticated || !isPlayerReady || hasResumedRef.current) return;
     const lessonProgress = progressData?.progresses?.find((p: any) => p.lesson === lessonId);
     if (lessonProgress && !lessonProgress.completed && lessonProgress.watchedSeconds > 10) {
       const player = playerRef.current?.plyr;
       if (player) {
-        // Small delay to ensure player is fully initialized
-        setTimeout(() => {
-          player.currentTime = lessonProgress.watchedSeconds;
-        }, 300);
+        setTimeout(() => { player.currentTime = lessonProgress.watchedSeconds; }, 300);
       }
       hasResumedRef.current = true;
     } else if (progressData !== undefined) {
-      // progressData loaded — mark lesson as "last visited" so Continue Learning works correctly
-      // Only save a visit if there's no existing progress (don't overwrite saved seconds with 0)
       const existingSeconds = lessonProgress?.watchedSeconds || 0;
       updateProgress(lessonId, { watchedSeconds: existingSeconds }).catch(() => {});
       hasResumedRef.current = true;
     }
   }, [isAuthenticated, isPlayerReady, progressData, lessonId]);
 
-  const handleTimeUpdate = useCallback((e: any) => {
-    if (!isAuthenticatedRef.current) return;
-    const player = playerRef.current?.plyr;
-    const currentTime = player?.currentTime || 0;
-    if (currentTime < 2) return; // Don't save at the very beginning
-    const now = Date.now();
-    // Save every 10 seconds of real time
-    if (now - lastUpdateRef.current > 10000) {
-      updateProgress(lessonIdRef.current, { watchedSeconds: Math.floor(currentTime) }).catch(console.warn);
-      lastUpdateRef.current = now;
-    }
-  }, []);
-
-  // pauseCleanupRef holds the cleanup fn so we can remove the listener on unmount/lesson change
-  const pauseCleanupRef = useRef<(() => void) | null>(null);
-
-  // Attach pause listener via Plyr's native 'ready' event — most reliable method
+  // ─── Pause listener ───────────────────────────────────────────────────────────
   useEffect(() => {
-    // Small delay to ensure playerRef is populated after first render
     const timer = setTimeout(() => {
       const player = playerRef.current?.plyr;
       if (!player) return;
 
-      const attachPauseListener = () => {
+      const attach = () => {
         const videoEl = player.media as HTMLVideoElement | null;
         if (!videoEl) return;
         if (pauseCleanupRef.current) pauseCleanupRef.current();
@@ -134,7 +185,6 @@ export function VideoPlayer({
         const onPause = () => {
           if (!isAuthenticatedRef.current) return;
           const time = player.currentTime || 0;
-          console.log('[VideoPlayer] pause, time:', time);
           if (time > 5) {
             updateProgress(lessonIdRef.current, { watchedSeconds: Math.floor(time) }).catch(console.warn);
             lastUpdateRef.current = Date.now();
@@ -145,50 +195,52 @@ export function VideoPlayer({
         pauseCleanupRef.current = () => videoEl.removeEventListener('pause', onPause);
       };
 
-      // Attach immediately if already ready, or on 'ready' event
-      if ((player as any).ready) {
-        attachPauseListener();
-      } else {
-        player.on('ready', attachPauseListener);
-      }
+      (player as any).ready ? attach() : player.on('ready', attach);
     }, 100);
 
     return () => {
       clearTimeout(timer);
-      if (pauseCleanupRef.current) {
-        pauseCleanupRef.current();
-        pauseCleanupRef.current = null;
-      }
+      if (pauseCleanupRef.current) { pauseCleanupRef.current(); pauseCleanupRef.current = null; }
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Save when user closes tab or navigates away
+  // ─── Tab close / navigate away ────────────────────────────────────────────────
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const onUnload = () => {
       if (!isAuthenticatedRef.current) return;
       const player = playerRef.current?.plyr;
-      const currentTime = player?.currentTime || 0;
-      if (currentTime > 5) {
-        // Use sendBeacon for reliable save on page unload
-        const data = JSON.stringify({ watchedSeconds: Math.floor(currentTime) });
+      const t = player?.currentTime || 0;
+      if (t > 5) {
         navigator.sendBeacon?.(
           `/api/watch-record/${lessonIdRef.current}`,
-          new Blob([data], { type: 'application/json' })
+          new Blob([JSON.stringify({ watchedSeconds: Math.floor(t) })], { type: 'application/json' }),
         );
       }
     };
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('beforeunload', onUnload);
+    return () => window.removeEventListener('beforeunload', onUnload);
   }, []);
 
-  const handleEnded = useCallback((e: any) => {
+  // ─── Handlers ─────────────────────────────────────────────────────────────────
+  const handleTimeUpdate = useCallback(() => {
+    if (!isAuthenticatedRef.current) return;
+    const player = playerRef.current?.plyr;
+    const t = player?.currentTime || 0;
+    if (t < 2) return;
+    const now = Date.now();
+    if (now - lastUpdateRef.current > 10000) {
+      updateProgress(lessonIdRef.current, { watchedSeconds: Math.floor(t) }).catch(console.warn);
+      lastUpdateRef.current = now;
+    }
+  }, []);
+
+  const handleEnded = useCallback(() => {
     if (isAuthenticatedRef.current) {
       const player = playerRef.current?.plyr;
-      const duration = player?.duration || 0;
-      updateProgress(lessonIdRef.current, { watchedSeconds: Math.floor(duration), completed: true }).catch(console.warn);
+      const dur = player?.duration || 0;
+      updateProgress(lessonIdRef.current, { watchedSeconds: Math.floor(dur), completed: true }).catch(console.warn);
     }
     onMarkComplete(lessonIdRef.current);
-    
     if (nextLessonRef.current) {
       setShowNextOverlay(true);
       let count = 5;
@@ -204,7 +256,6 @@ export function VideoPlayer({
           setShowNextOverlay(false);
         }
       }, 1000);
-      
       return () => clearInterval(timer);
     } else {
       toast.success('Course completed! 🎉');
@@ -216,19 +267,14 @@ export function VideoPlayer({
     setIsPlayerReady(true);
   }, []);
 
-  const handleError = useCallback(() => {
-    setHasError(true);
-  }, []);
+  const handleError = useCallback(() => { setHasError(true); }, []);
 
   const handleMarkCompleteManual = async () => {
     if (!isAuthenticated) return;
     setIsUpdatingProgress(true);
     const player = playerRef.current?.plyr;
     const watchedSeconds = Math.floor(player?.currentTime || 0);
-    
-    // Optimistic
     onMarkComplete(lessonId);
-    
     try {
       await updateProgress(lessonId, { watchedSeconds, completed: true });
     } catch (e) {
@@ -240,30 +286,60 @@ export function VideoPlayer({
 
   const currentSection = course?.sections?.find((s) => s.lessons.some((l) => l._id === lessonId));
 
+  const isHlsUrl = videoUrl?.includes('.m3u8') ?? false;
+  const nativeSafari = typeof document !== 'undefined'
+    && document.createElement('video').canPlayType('application/vnd.apple.mpegurl') !== '';
+  const plyrSources = isHlsUrl && !nativeSafari
+    ? [] // hls.js drives the video element
+    : [{ src: videoUrl ?? '', provider: 'html5' as const }];
+
+
   return (
-    <div className="max-w-[900px] mx-auto pb-24">
+    <div className="w-full pb-24">
       {/* VIDEO CONTAINER */}
-      <div className="p-4 sm:p-6 pb-0">
-        <div className="w-full aspect-video rounded-[12px] overflow-hidden bg-[#131313] shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-[#262626] relative">
-          
+      <div className="w-full flex justify-center px-4 sm:px-8 md:px-12 pt-6">
+        <div
+          className="w-full rounded-[12px] overflow-hidden bg-[#131313] shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-[#262626] relative"
+          style={{ aspectRatio: '16/9', maxHeight: '75vh', maxWidth: 'calc(75vh * 16 / 9)' }}
+        >
           {canAccess && videoUrl ? (
             <div className="w-full h-full relative">
               <Plyr
                 ref={playerRef}
                 source={{
                   type: 'video',
-                  sources: [{ src: videoUrl, provider: 'html5' }],
+                  sources: plyrSources,
+                  poster: posterUrl,
                 }}
                 options={{
                   controls: [
                     'play-large', 'play', 'rewind', 'fast-forward', 'progress',
                     'current-time', 'duration', 'mute', 'volume',
-                    'settings', 'pip', 'fullscreen'
+                    'settings', 'pip', 'fullscreen',
                   ],
                   settings: ['speed', 'quality'],
+                  // Pre-populate with Bunny's known quality tiers so the gear menu
+                  // renders at mount time. onChange routes through hlsRef so it works
+                  // once hls.js has loaded the manifest.
+                  quality: {
+                    default: 0,
+                    options: [0, 1080, 720, 480, 360],
+                    forced: true,
+                    onChange: (q: number) => {
+                      const hls = hlsRef.current;
+                      if (!hls) return;
+                      if (q === 0) {
+                        hls.currentLevel = -1; // Auto ABR
+                      } else {
+                        const idx = hls.levels.findIndex((l) => l.height === q);
+                        hls.currentLevel = idx !== -1 ? idx : -1;
+                      }
+                    },
+                  },
                   speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
                   keyboard: { global: true },
                   tooltips: { controls: true },
+                  i18n: { qualityLabel: { 0: 'Auto' } },
                 }}
                 onTimeUpdate={handleTimeUpdate}
                 onEnded={handleEnded}
@@ -279,10 +355,7 @@ export function VideoPlayer({
                     The secure video link may have expired or there was a network issue.
                   </p>
                   <button
-                    onClick={() => {
-                      setHasError(false);
-                      refetchWatchData();
-                    }}
+                    onClick={() => { setHasError(false); refetchWatchData(); }}
                     className="px-6 py-2.5 bg-[#ff6b00] hover:bg-[#ff8533] text-white font-bold rounded-lg transition-colors"
                   >
                     Retry
@@ -298,14 +371,10 @@ export function VideoPlayer({
                   </h2>
                   <div className="flex items-center gap-4">
                     <button
-                      onClick={() => {
-                        setShowNextOverlay(false);
-                        if (nextLesson?._id) navigate(buildPlayerUrl(courseSlug, nextLesson._id));
-                      }}
+                      onClick={() => { setShowNextOverlay(false); if (nextLesson?._id) navigate(buildPlayerUrl(courseSlug, nextLesson._id)); }}
                       className="px-6 py-2.5 bg-[#ff6b00] hover:bg-[#ff8533] text-white font-bold rounded-lg transition-colors flex items-center gap-2"
                     >
-                      <PlayCircle className="w-5 h-5" />
-                      Play Now
+                      <PlayCircle className="w-5 h-5" /> Play Now
                     </button>
                     <button
                       onClick={() => setShowNextOverlay(false)}
@@ -322,26 +391,19 @@ export function VideoPlayer({
               <div className="w-16 h-16 rounded-full bg-[#1a1a1a] flex items-center justify-center mb-6 border border-[#262626]">
                 <Lock className="w-8 h-8 text-[#a3a3a3]" />
               </div>
-              
               {watchData?.reason === 'login_required' ? (
                 <>
                   <h3 className="font-['Plus_Jakarta_Sans'] text-2xl font-bold text-white mb-2">Login to watch</h3>
-                  <p className="text-[#a3a3a3] max-w-md mb-8">
-                    Create an account or login to track your progress and access this lesson.
-                  </p>
+                  <p className="text-[#a3a3a3] max-w-md mb-8">Create an account or login to track your progress and access this lesson.</p>
                   <div className="flex items-center gap-4">
                     <button
                       onClick={() => navigate(`/login?redirect=${buildPlayerUrl(courseSlug, lessonId)}`)}
                       className="px-6 py-2.5 bg-[#ff6b00] hover:bg-[#ff8533] text-white font-bold rounded-lg transition-colors"
-                    >
-                      Login
-                    </button>
+                    >Login</button>
                     <button
                       onClick={() => navigate(`/courses/${courseSlug}`)}
                       className="px-6 py-2.5 border border-[#404040] hover:bg-[#1a1a1a] text-white font-bold rounded-lg transition-colors"
-                    >
-                      Back to Course
-                    </button>
+                    >Back to Course</button>
                   </div>
                 </>
               ) : (
@@ -350,9 +412,7 @@ export function VideoPlayer({
                     Premium Content
                   </span>
                   <h3 className="font-['Plus_Jakarta_Sans'] text-2xl font-bold text-white mb-2">This lesson is locked</h3>
-                  <p className="text-[#a3a3a3] max-w-md mb-8">
-                    Enroll in this course to access all lessons and resources.
-                  </p>
+                  <p className="text-[#a3a3a3] max-w-md mb-8">Enroll in this course to access all lessons and resources.</p>
                   <div className="flex items-center gap-4">
                     <button
                       onClick={() => navigate(`/courses/${courseSlug}`)}
@@ -396,8 +456,7 @@ export function VideoPlayer({
               )}
               {isCompleted && (
                 <div className="inline-flex items-center gap-2 px-4 py-2 bg-[#22c55e]/10 border border-[#22c55e]/20 text-[#22c55e] rounded-lg font-medium text-sm">
-                  <CheckCircle className="w-4 h-4" />
-                  Completed
+                  <CheckCircle className="w-4 h-4" /> Completed
                 </div>
               )}
               {!isAuthenticated && canAccess && (
@@ -414,8 +473,7 @@ export function VideoPlayer({
                 title={prevLesson?.title}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-transparent border border-[#404040] hover:border-white text-white rounded-lg font-medium text-sm transition-all disabled:opacity-40 disabled:pointer-events-none"
               >
-                <ChevronLeft className="w-4 h-4" />
-                Prev
+                <ChevronLeft className="w-4 h-4" /> Prev
               </button>
               <button
                 onClick={() => nextLesson && navigate(buildPlayerUrl(courseSlug, nextLesson._id))}
@@ -423,8 +481,7 @@ export function VideoPlayer({
                 title={nextLesson?.title}
                 className="inline-flex items-center gap-2 px-4 py-2 bg-transparent border border-[#404040] hover:border-white text-white rounded-lg font-medium text-sm transition-all disabled:opacity-40 disabled:pointer-events-none"
               >
-                Next
-                <ChevronRight className="w-4 h-4" />
+                Next <ChevronRight className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -436,10 +493,9 @@ export function VideoPlayer({
             {currentLesson.content && (
               <div className="p-6 bg-[#0a0a0a] rounded-[12px] border border-[#1a1a1a]">
                 <h3 className="font-['Plus_Jakarta_Sans'] font-bold text-[18px] text-white mb-6 flex items-center gap-3">
-                  <FileText className="w-5 h-5 text-[#ff6b00]" />
-                  Lesson Details
+                  <FileText className="w-5 h-5 text-[#ff6b00]" /> Lesson Details
                 </h3>
-                <div 
+                <div
                   className="prose prose-invert max-w-none prose-p:text-[#a3a3a3] prose-p:leading-relaxed prose-headings:text-white prose-a:text-[#ff6b00] prose-strong:text-white prose-li:text-[#a3a3a3]"
                   dangerouslySetInnerHTML={{ __html: currentLesson.content }}
                 />
@@ -451,8 +507,7 @@ export function VideoPlayer({
             {currentLesson.resources && currentLesson.resources.length > 0 && (
               <div className="p-6 bg-[#0a0a0a] rounded-[12px] border border-[#1a1a1a]">
                 <h3 className="font-['Plus_Jakarta_Sans'] font-bold text-[18px] text-white mb-6 flex items-center gap-3">
-                  <Link2 className="w-5 h-5 text-[#ff6b00]" />
-                  Resources
+                  <Link2 className="w-5 h-5 text-[#ff6b00]" /> Resources
                 </h3>
                 <div className="space-y-3">
                   {currentLesson.resources.map((res, idx) => (

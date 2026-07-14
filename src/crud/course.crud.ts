@@ -10,6 +10,7 @@ import type {
   UpdateSectionPayload,
   CreateLessonPayload,
   UpdateLessonPayload,
+  IPriceBreakdown,
 } from '../types/course.types';
 
 const COURSES_URL = '/courses';
@@ -30,7 +31,7 @@ export const getAllCourses = () => {
  * Fetch a single course by slug, including its full curriculum (sections + lessons).
  */
 export const getCourseBySlug = (slug: string) => {
-  return axiosInstance.get<{ success: boolean; data: ICourseDetail }>(`${COURSES_URL}/${slug}`);
+  return axiosInstance.get<{ success: boolean; data: { course: ICourseDetail, sections: ISection[], priceBreakdown: IPriceBreakdown } }>(`${COURSES_URL}/${slug}`);
 };
 
 // ─── Admin — Courses ──────────────────────────────────────────────────────────
@@ -83,7 +84,7 @@ export const adminTogglePublish = (id: string) => {
  */
 export const adminUploadThumbnail = (id: string, file: File) => {
   const formData = new FormData();
-  formData.append('avatar', file); // field name matches multer's uploadSingle config
+  formData.append('thumbnail', file); // field name matches multer's uploadThumbnail config
   return axiosInstance.put<{ success: boolean; data: ICourse }>(
     `${ADMIN_COURSES_URL}/${id}/thumbnail`,
     formData,
@@ -140,7 +141,7 @@ export const adminUpdateLesson = (id: string, data: UpdateLessonPayload) => {
 };
 
 /**
- * Delete a lesson and its associated Cloudinary video.
+ * Delete a lesson and its associated Bunny Stream video.
  */
 export const adminDeleteLesson = (id: string) => {
   return axiosInstance.delete<{ success: boolean; message: string }>(`${ADMIN_LESSONS_URL}/${id}`);
@@ -148,12 +149,13 @@ export const adminDeleteLesson = (id: string) => {
 
 /**
  * Upload or replace the video for a lesson.
- * Accepts an optional onProgress callback to track upload percentage (0–100).
+ * Accepts an optional onProgress callback that receives the raw AxiosProgressEvent
+ * so callers can compute percentage, speed, and ETA themselves.
  */
 export const adminUploadLessonVideo = (
   lessonId: string,
   file: File,
-  onProgress?: (percentage: number) => void,
+  onProgress?: (event: { loaded: number; total?: number }) => void,
 ) => {
   const formData = new FormData();
   formData.append('video', file); // field name matches multer's uploadVideo config
@@ -164,9 +166,8 @@ export const adminUploadLessonVideo = (
     {
       headers: { 'Content-Type': 'multipart/form-data' },
       onUploadProgress: (progressEvent) => {
-        if (onProgress && progressEvent.total) {
-          const percentage = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          onProgress(percentage);
+        if (onProgress) {
+          onProgress({ loaded: progressEvent.loaded, total: progressEvent.total });
         }
       },
     },

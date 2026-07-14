@@ -3,11 +3,12 @@ import type { ICreateOrderResponse, IPayment } from '../types/course.types';
 import type { ApiResponse } from '../types/api.types';
 
 export const createOrder = async (
-  courseId: string
+  courseId: string,
+  couponCode?: string
 ): Promise<ApiResponse<ICreateOrderResponse>> => {
   const response = await axiosInstance.post<ApiResponse<ICreateOrderResponse>>(
     '/payments/create-order',
-    { courseId }
+    { courseId, couponCode }
   );
   return response.data;
 };
