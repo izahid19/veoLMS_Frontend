@@ -372,14 +372,6 @@ export default function AdminCoursesPage() {
                             >
                               <Pencil className="w-4 h-4" />
                             </button>
-                            {/* Delete */}
-                            <button
-                              onClick={() => setCourseToDelete(course)}
-                              title="Delete course"
-                              className="p-2 rounded-lg text-on-surface-variant hover:text-red-400 hover:bg-red-500/10 transition-all duration-200"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
                           </div>
                         </td>
                       </motion.tr>
