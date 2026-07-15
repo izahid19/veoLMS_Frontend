@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    color-scheme: dark;
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -66,7 +67,12 @@
   input:-webkit-autofill,
   input:-webkit-autofill:hover, 
   input:-webkit-autofill:focus, 
-  input:-webkit-autofill:active {
+  input:-webkit-autofill:active,
+  input:-webkit-autofill-preview,
+  input:-webkit-autofill-preview:hover,
+  input:-webkit-autofill-preview:focus,
+  input:-internal-autofill-previewed,
+  input:-internal-autofill-selected {
     -webkit-box-shadow: 0 0 0 30px #131313 inset !important;
     -webkit-text-fill-color: #e5e2e1 !important;
     caret-color: #e5e2e1 !important;
