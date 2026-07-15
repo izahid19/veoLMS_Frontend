@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { getAllCourses } from '../../crud/course.crud';
 import { CourseCard, CourseCardSkeleton } from '../ui/CourseCard';
+import useAuthStore from '../../store/authStore';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -18,6 +19,9 @@ const itemVariants = {
 };
 
 export const FeaturedPathways = () => {
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === 'admin';
+
   const { data: courses, isLoading } = useQuery({
     queryKey: ['featuredCourses'],
     queryFn: async () => {
@@ -25,6 +29,10 @@ export const FeaturedPathways = () => {
       return res.data.data;
     }
   });
+
+  if (!isLoading && (!courses || courses.length === 0) && !isAdmin) {
+    return null;
+  }
 
   return (
     <section className="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-section-padding">
