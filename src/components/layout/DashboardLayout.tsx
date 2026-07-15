@@ -51,17 +51,13 @@ export const DashboardLayout = () => {
       <Sidebar open={open} setOpen={setOpen}>
         <SidebarBody className="justify-between gap-10">
           <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
-            <div className="flex items-center mb-8 px-4">
-              <Link to="/" className="flex items-center gap-2 group">
-                <div className="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center text-white font-bold shadow-success-glow group-hover:scale-105 transition-transform shrink-0">
-                  V
-                </div>
-                <motion.div 
-                  animate={{ display: open ? "flex" : "none", opacity: open ? 1 : 0 }} 
-                  className="items-center"
-                >
+            <div className="flex items-center mb-8 px-4 h-8">
+              <Link to="/" className="flex items-center gap-2 group w-full overflow-hidden">
+                {open ? (
                   <img src="/logo.png" alt="VeoLMS" className="h-8 w-auto object-contain" />
-                </motion.div>
+                ) : (
+                  <img src="/favicon.svg" alt="VeoLMS" className="h-6 w-6 object-contain mx-auto" />
+                )}
               </Link>
             </div>
             

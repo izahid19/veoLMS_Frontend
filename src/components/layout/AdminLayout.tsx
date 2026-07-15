@@ -70,17 +70,18 @@ export const AdminLayout = () => {
       <Sidebar open={open} setOpen={setOpen}>
         <SidebarBody className="justify-between gap-10">
           <div className="flex flex-col flex-1 overflow-y-auto overflow-x-hidden">
-            <div className="flex items-center mb-8 px-4">
-              <Link to="/" className="flex items-center gap-2 group">
-                <div className="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center text-white font-bold shadow-success-glow group-hover:scale-105 transition-transform shrink-0">
-                  V
-                </div>
-                <motion.div 
-                  animate={{ display: open ? "flex" : "none", opacity: open ? 1 : 0 }} 
-                  className="items-center"
-                >
-                  <span className="text-lg font-display-md font-bold text-on-surface whitespace-nowrap">VeoLMS Admin</span>
-                </motion.div>
+            <div className="flex items-center mb-8 px-4 h-8">
+              <Link to="/" className="flex items-center gap-2 group w-full overflow-hidden">
+                {open ? (
+                  <div className="flex items-center gap-2">
+                    <img src="/logo.png" alt="VeoLMS" className="h-8 w-auto object-contain" />
+                    <span className="text-xs font-semibold px-2 py-0.5 rounded bg-primary-container/20 text-[#ff6b00] border border-primary/20 shrink-0">
+                      Admin
+                    </span>
+                  </div>
+                ) : (
+                  <img src="/favicon.svg" alt="VeoLMS" className="h-6 w-6 object-contain mx-auto" />
+                )}
               </Link>
             </div>
             

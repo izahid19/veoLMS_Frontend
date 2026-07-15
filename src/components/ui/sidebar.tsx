@@ -104,12 +104,9 @@ const MobileSidebar = ({
         >
           <Menu className="w-6 h-6" />
         </button>
-        <div className="flex items-center gap-2 group">
-           <div className="w-8 h-8 rounded-lg bg-primary-container flex items-center justify-center text-white font-bold shadow-success-glow">
-            V
-          </div>
+        <Link to="/" className="flex items-center gap-2 group">
           <img src="/logo.png" alt="VeoLMS" className="h-8 w-auto object-contain" />
-        </div>
+        </Link>
       </div>
       <AnimatePresence>
         {open && (
