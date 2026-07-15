@@ -83,6 +83,7 @@ export interface ICourse {
   trailerPublicId?: string;
   price: number;
   isPublished: boolean;
+  isFeatured: boolean;
   instructor?: {
     _id: string;
     firstName: string;
@@ -123,6 +124,7 @@ export interface CreateCoursePayload {
   description: string;
   price: number;
   isPublished?: boolean;
+  isFeatured?: boolean;
   instructor: string;
 }
 
@@ -131,6 +133,7 @@ export interface UpdateCoursePayload {
   description?: string;
   price?: number;
   isPublished?: boolean;
+  isFeatured?: boolean;
 }
 
 export interface CreateSectionPayload {

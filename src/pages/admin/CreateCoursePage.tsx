@@ -114,13 +114,14 @@ export default function CreateCoursePage() {
   };
 
   const createMutation = useMutation({
-    mutationFn: async (values: { title: string; description: string; price: number; isPublished: boolean; instructor: string }) => {
+    mutationFn: async (values: { title: string; description: string; price: number; isPublished: boolean; isFeatured: boolean; instructor: string }) => {
       // 1. Create course (convert price from ₹ to paise)
       const createRes = await adminCreateCourse({
         title: values.title,
         description: values.description,
         price: Math.round(values.price * 100),
         isPublished: values.isPublished,
+        isFeatured: values.isFeatured,
         instructor: values.instructor,
       });
 
@@ -177,6 +178,7 @@ export default function CreateCoursePage() {
           description: '',
           price: 0,
           isPublished: false,
+          isFeatured: false,
           instructor: '',
         }}
         validationSchema={validationSchema}
@@ -371,28 +373,55 @@ export default function CreateCoursePage() {
             {/* Submit Action Bar */}
             <div className="bg-surface border border-surface-border rounded-2xl p-6 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-6 sticky bottom-6 z-40">
               
-              {/* Publish Toggle */}
-              <div className="flex items-center gap-4">
-                <button
-                  type="button"
-                  onClick={() => setFieldValue('isPublished', !values.isPublished)}
-                  className={cn(
-                    'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-container focus:ring-offset-2 focus:ring-offset-background',
-                    values.isPublished ? 'bg-emerald-500' : 'bg-surface-border'
-                  )}
-                >
-                  <span
+              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8">
+                {/* Publish Toggle */}
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setFieldValue('isPublished', !values.isPublished)}
                     className={cn(
-                      'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
-                      values.isPublished ? 'translate-x-6' : 'translate-x-1'
+                      'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-container focus:ring-offset-2 focus:ring-offset-background',
+                      values.isPublished ? 'bg-emerald-500' : 'bg-surface-border'
                     )}
-                  />
-                </button>
-                <div>
-                  <p className="text-sm font-semibold text-on-surface">Publish immediately</p>
-                  <p className="text-xs text-on-surface-variant">
-                    {values.isPublished ? 'Course will be visible to students.' : 'Save as draft. You can publish it later.'}
-                  </p>
+                  >
+                    <span
+                      className={cn(
+                        'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                        values.isPublished ? 'translate-x-6' : 'translate-x-1'
+                      )}
+                    />
+                  </button>
+                  <div>
+                    <p className="text-sm font-semibold text-on-surface">Publish immediately</p>
+                    <p className="text-xs text-on-surface-variant">
+                      {values.isPublished ? 'Course will be visible to students.' : 'Save as draft. You can publish it later.'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Featured Toggle */}
+                <div className="flex items-center gap-4">
+                  <button
+                    type="button"
+                    onClick={() => setFieldValue('isFeatured', !values.isFeatured)}
+                    className={cn(
+                      'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-container focus:ring-offset-2 focus:ring-offset-background',
+                      values.isFeatured ? 'bg-primary' : 'bg-surface-border'
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'inline-block h-4 w-4 transform rounded-full bg-white transition-transform',
+                        values.isFeatured ? 'translate-x-6' : 'translate-x-1'
+                      )}
+                    />
+                  </button>
+                  <div>
+                    <p className="text-sm font-semibold text-on-surface">Featured Course</p>
+                    <p className="text-xs text-on-surface-variant">
+                      {values.isFeatured ? 'Show in Featured Pathways.' : 'Keep as standard course.'}
+                    </p>
+                  </div>
                 </div>
               </div>
 

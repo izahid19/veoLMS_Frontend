@@ -23,8 +23,8 @@ const ADMIN_LESSONS_URL = '/admin/lessons';
 /**
  * Fetch all published courses.
  */
-export const getAllCourses = () => {
-  return axiosInstance.get<{ success: boolean; data: ICourse[] }>(COURSES_URL);
+export const getAllCourses = (params?: { isFeatured?: boolean }) => {
+  return axiosInstance.get<{ success: boolean; data: ICourse[] }>(COURSES_URL, { params });
 };
 
 /**
@@ -80,6 +80,13 @@ export const adminDeleteCourse = (id: string) => {
  */
 export const adminTogglePublish = (id: string) => {
   return axiosInstance.patch<{ success: boolean; data: ICourse }>(`${ADMIN_COURSES_URL}/${id}/publish`);
+};
+
+/**
+ * Toggle the featured status of a course.
+ */
+export const adminToggleFeatured = (id: string) => {
+  return axiosInstance.patch<{ success: boolean; data: ICourse }>(`${ADMIN_COURSES_URL}/${id}/featured`);
 };
 
 /**
