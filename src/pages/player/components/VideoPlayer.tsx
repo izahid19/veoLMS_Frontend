@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   PlayCircle, CheckCircle, ChevronLeft, ChevronRight,
-  Loader2, FileText, Link2, ExternalLink, Lock, AlertCircle,
+  Loader2, FileText, Link2, ExternalLink, Lock, AlertCircle, User,
 } from 'lucide-react';
 import { Plyr } from 'plyr-react';
 import 'plyr-react/plyr.css';
@@ -508,6 +508,42 @@ export function VideoPlayer({
                   className="prose prose-invert max-w-none prose-p:text-[#a3a3a3] prose-p:leading-relaxed prose-headings:text-white prose-a:text-[#ff6b00] prose-strong:text-white prose-li:text-[#a3a3a3]"
                   dangerouslySetInnerHTML={{ __html: currentLesson.content }}
                 />
+              </div>
+            )}
+
+            {course.instructor && (
+              <div className="p-6 bg-[#0a0a0a] rounded-[12px] border border-[#1a1a1a]">
+                <h3 className="font-['Plus_Jakarta_Sans'] font-bold text-[18px] text-white mb-6 flex items-center gap-3">
+                  <User className="w-5 h-5 text-[#ff6b00]" /> About the Instructor
+                </h3>
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full overflow-hidden bg-[#131313] border border-[#262626] flex-shrink-0 flex items-center justify-center">
+                    {course.instructor.avatar ? (
+                      <img
+                        src={course.instructor.avatar}
+                        alt={`${course.instructor.firstName} ${course.instructor.lastName}`}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-lg font-bold text-[#e5e2e1]">
+                        {course.instructor.firstName.charAt(0)}{course.instructor.lastName.charAt(0)}
+                      </span>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="font-['Plus_Jakarta_Sans'] font-bold text-base text-white">
+                      {course.instructor.firstName} {course.instructor.lastName}
+                    </h4>
+                    <p className="text-xs text-[#8e8e93] font-['Inter'] mt-0.5">
+                      Course Instructor
+                    </p>
+                    {course.instructor.emailId && (
+                      <p className="text-xs text-[#ff6b00]/80 font-['Inter'] mt-1">
+                        {course.instructor.emailId}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
           </div>
