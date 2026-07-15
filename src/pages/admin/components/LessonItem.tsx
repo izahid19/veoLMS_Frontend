@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GripVertical, ChevronDown, ChevronUp, Film, Trash2, Link, Save, Plus } from 'lucide-react';
@@ -67,7 +67,7 @@ const LessonItem = ({ lesson, courseId, isExpanded, onToggle }: { lesson: ILesso
         const total = progressEvent.total;
         const percent = Math.round((loaded * 100) / total);
 
-        // Browser Î“Ã¥Ã† server transfer done: switch to "server Î“Ã¥Ã† Bunny" processing phase
+        // Browser -> server transfer done: switch to "server -> Bunny" processing phase
         if (percent >= 100) {
           setUploadStats(prev => prev ? { ...prev, percent: 100, phase: 'processing' } : null);
           return;
@@ -80,9 +80,9 @@ const LessonItem = ({ lesson, courseId, isExpanded, onToggle }: { lesson: ILesso
       });
     },
     onSuccess: () => {
-      // Backend finished uploading to Bunny Î“Ã‡Ã¶ all done
+      // Backend finished uploading to Bunny - all done
       queryClient.invalidateQueries({ queryKey: ['course', courseId] });
-      toast.success('Video uploaded Î“Ã‡Ã¶ Bunny is processing it now');
+      toast.success('Video uploaded - Bunny is processing it now');
       setUploadStats(null);
     },
     onError: () => {
@@ -125,7 +125,7 @@ const LessonItem = ({ lesson, courseId, isExpanded, onToggle }: { lesson: ILesso
 
   return (
     <div className="flex flex-col group/lesson transition-all duration-300 border-b border-surface-border last:border-0 hover:bg-surface-dim/20">
-      {/* Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡ HEADER (Always Visible) Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡ */}
+      {/* ─── HEADER (Always Visible) ─── */}
       <div 
         className={cn(
           "flex items-center gap-3 p-3 transition-colors cursor-pointer",
@@ -193,7 +193,7 @@ const LessonItem = ({ lesson, courseId, isExpanded, onToggle }: { lesson: ILesso
         </div>
       </div>
 
-      {/* Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡ BODY (Expanded State) Î“Ã¶Ã‡Î“Ã¶Ã‡Î“Ã¶Ã‡ */}
+      {/* ─── BODY (Expanded State) ─── */}
       <AnimatePresence>
         {isExpanded && (
           <motion.div
@@ -322,13 +322,13 @@ const LessonItem = ({ lesson, courseId, isExpanded, onToggle }: { lesson: ILesso
                           </span>
                           <span className="flex items-center gap-3">
                             <span title="Upload speed">
-                              Î“Ã¥Ã¦ {uploadStats.speed >= 1024 * 1024
+                              ↑ {uploadStats.speed >= 1024 * 1024
                                 ? `${(uploadStats.speed / (1024 * 1024)).toFixed(1)} MB/s`
                                 : `${(uploadStats.speed / 1024).toFixed(0)} KB/s`}
                             </span>
                             {uploadStats.eta > 0 && (
                               <span title="Estimated time remaining">
-                                Î“Ã…â–’ {uploadStats.eta >= 60
+                                ⏳ {uploadStats.eta >= 60
                                   ? `${Math.floor(uploadStats.eta / 60)}m ${uploadStats.eta % 60}s`
                                   : `${uploadStats.eta}s`}
                               </span>
@@ -341,7 +341,7 @@ const LessonItem = ({ lesson, courseId, isExpanded, onToggle }: { lesson: ILesso
                       <div className="flex items-center gap-3">
                         <div className="w-5 h-5 border-2 border-primary-container/30 border-t-primary-container rounded-full animate-spin shrink-0" />
                         <div>
-                          <p className="text-xs font-semibold text-on-surface">Processing on Bunny StreamÎ“Ã‡Âª</p>
+                          <p className="text-xs font-semibold text-on-surface">Processing on Bunny Stream...</p>
                           <p className="text-[11px] text-on-surface-variant mt-0.5">HLS encoding in progress. Duration will update automatically.</p>
                         </div>
                       </div>
@@ -351,6 +351,7 @@ const LessonItem = ({ lesson, courseId, isExpanded, onToggle }: { lesson: ILesso
               </div>
 
               {/* Settings Row 3: Description & Resources */}
+
               <div className="flex flex-col gap-4 p-4 border border-surface-border rounded-xl bg-background shadow-sm">
                 
                 {/* Description */}
