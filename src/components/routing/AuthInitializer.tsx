@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Loader2 } from 'lucide-react';
 import useAuthStore from '../../store/authStore';
 import axiosInstance from '../../lib/axios';
+
+import { AnimatePresence } from 'framer-motion';
+import { SplashScreen } from '../layout/SplashScreen';
 
 /**
  * AuthInitializer
@@ -20,8 +22,12 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
     let isMounted = true;
 
     const initAuth = async () => {
+      // Start the timer immediately
+      const minLoadTime = new Promise(resolve => setTimeout(resolve, 2000));
+      
       try {
         const response = await axiosInstance.get('/auth/me');
+        
         if (isMounted) {
           if (response.data?.success && response.data?.data) {
             // Keep any accessToken that was re-issued by the interceptor;
@@ -38,6 +44,9 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
           clearAuth();
         }
       } finally {
+        // Wait for the cinematic splash screen to finish, regardless of network speed or auth errors
+        await minLoadTime;
+        
         if (isMounted) {
           setIsInitializing(false);
         }
@@ -51,16 +60,12 @@ export const AuthInitializer: React.FC<{ children: React.ReactNode }> = ({ child
     };
   }, [setAuth, clearAuth]);
 
-  if (isInitializing) {
-    return (
-      <div className="flex h-screen w-full items-center justify-center bg-[#050505]">
-        <div className="flex flex-col items-center gap-4">
-          <Loader2 className="h-10 w-10 animate-spin text-[#ff6b00]" />
-          <p className="text-sm text-gray-400 font-medium animate-pulse">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  return <>{children}</>;
+  return (
+    <>
+      <AnimatePresence mode="wait">
+        {isInitializing && <SplashScreen key="splash" />}
+      </AnimatePresence>
+      {!isInitializing && children}
+    </>
+  );
 };
