@@ -1,13 +1,20 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AxiosError } from 'axios';
 import { Formik, Form, Field, ErrorMessage } from 'formik';
 import * as Yup from 'yup';
 import { TipTapEditor } from '../../components/ui/TipTapEditor';
 import { ThumbnailUpload } from '../../components/ui/ThumbnailUpload';
-import { ArrowLeft, Check } from 'lucide-react';
-import { adminCreateCourse, adminUploadThumbnail } from '../../crud/course.crud';
+import { ArrowLeft, Check, Plus, Upload } from 'lucide-react';
+import { Modal } from '../../components/ui/modal';
+import {
+  adminCreateCourse,
+  adminUploadThumbnail,
+  adminGetAllInstructors,
+  adminCreateInstructor,
+  adminUploadInstructorAvatar
+} from '../../crud/course.crud';
 import { toast } from '../../Utils/toast';
 import { cn } from '../../Utils/helpers';
 
@@ -31,22 +38,90 @@ const validationSchema = Yup.object({
     .required('Price is required')
     .min(0, 'Price cannot be negative'),
   isPublished: Yup.boolean().default(false),
+  instructor: Yup.string().required('Instructor is required'),
 });
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function CreateCoursePage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [thumbnail, setThumbnail] = useState<File | null>(null);
 
+  // Quick Add Instructor Modal States
+  const [isAddInstModalOpen, setIsAddInstModalOpen] = useState(false);
+  const [instFullName, setInstFullName] = useState('');
+  const [instEmail, setInstEmail] = useState('');
+  const [instAvatarFile, setInstAvatarFile] = useState<File | null>(null);
+  const [instAvatarPreview, setInstAvatarPreview] = useState<string | null>(null);
+  const [isSavingInst, setIsSavingInst] = useState(false);
+
+  const { data: instructors } = useQuery({
+    queryKey: ['instructors'],
+    queryFn: async () => {
+      const res = await adminGetAllInstructors();
+      return res.data.data;
+    }
+  });
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setInstAvatarFile(file);
+      setInstAvatarPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleQuickAddInstructor = async (setFieldValue: (field: string, value: any) => void) => {
+    if (!instFullName.trim() || !instEmail.trim()) {
+      toast.error('Name and Email are required');
+      return;
+    }
+    setIsSavingInst(true);
+    try {
+      const parts = instFullName.trim().split(/\s+/);
+      const firstName = parts[0] || '';
+      const lastName = parts.slice(1).join(' ') || '';
+
+      const res = await adminCreateInstructor({
+        firstName,
+        lastName,
+        emailId: instEmail.trim()
+      });
+
+      const newInst = res.data.data;
+
+      if (instAvatarFile) {
+        await adminUploadInstructorAvatar(newInst._id, instAvatarFile);
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ['instructors'] });
+      setFieldValue('instructor', newInst._id);
+      setIsAddInstModalOpen(false);
+      toast.success('Instructor created and selected!');
+
+      // Reset form
+      setInstFullName('');
+      setInstEmail('');
+      setInstAvatarFile(null);
+      setInstAvatarPreview(null);
+    } catch (error: any) {
+      const msg = error?.response?.data?.message || 'Failed to save instructor';
+      toast.error(msg);
+    } finally {
+      setIsSavingInst(false);
+    }
+  };
+
   const createMutation = useMutation({
-    mutationFn: async (values: { title: string; description: string; price: number; isPublished: boolean }) => {
+    mutationFn: async (values: { title: string; description: string; price: number; isPublished: boolean; instructor: string }) => {
       // 1. Create course (convert price from ₹ to paise)
       const createRes = await adminCreateCourse({
         title: values.title,
         description: values.description,
         price: Math.round(values.price * 100),
         isPublished: values.isPublished,
+        instructor: values.instructor,
       });
 
       const newCourseId = createRes.data.data._id;
@@ -102,6 +177,7 @@ export default function CreateCoursePage() {
           description: '',
           price: 0,
           isPublished: false,
+          instructor: '',
         }}
         validationSchema={validationSchema}
         onSubmit={(values) => {
@@ -134,6 +210,109 @@ export default function CreateCoursePage() {
                   )}
                 />
                 <ErrorMessage name="title" component="p" className="mt-2 text-sm text-error" />
+              </div>
+
+              {/* Instructor Selection */}
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                  <label className="block text-sm font-semibold text-on-surface">
+                    Instructor <span className="text-error">*</span>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddInstModalOpen(true)}
+                    className="text-xs font-semibold text-primary-container hover:text-primary-hover flex items-center gap-1 transition-colors"
+                  >
+                    <Plus className="w-3.5 h-3.5" /> Add New Instructor
+                  </button>
+                </div>
+                <Field
+                  as="select"
+                  name="instructor"
+                  className={cn(
+                    'w-full px-4 py-3 rounded-xl bg-background border transition-all focus:outline-none focus:ring-2 focus:ring-primary-container/20',
+                    errors.instructor && touched.instructor
+                      ? 'border-error text-error focus:border-error'
+                      : 'border-surface-border text-on-surface focus:border-primary-container'
+                  )}
+                >
+                  <option value="">Select an instructor...</option>
+                  {instructors?.map((inst: any) => (
+                    <option key={inst._id} value={inst._id}>
+                      {inst.firstName} {inst.lastName} ({inst.emailId})
+                    </option>
+                  ))}
+                </Field>
+                <ErrorMessage name="instructor" component="p" className="mt-2 text-sm text-error" />
+
+                {/* Quick Add Instructor Modal */}
+                <Modal
+                  isOpen={isAddInstModalOpen}
+                  onClose={() => setIsAddInstModalOpen(false)}
+                  title="Add New Instructor"
+                >
+                  <div className="space-y-4 pt-2">
+                    {/* Avatar Upload */}
+                    <div className="flex flex-col items-center justify-center gap-3 mb-4">
+                      <div className="relative group">
+                        {instAvatarPreview ? (
+                          <img src={instAvatarPreview} alt="Avatar" className="w-20 h-20 rounded-full object-cover border-2 border-primary-container/30" />
+                        ) : (
+                          <div className="w-20 h-20 rounded-full bg-background flex items-center justify-center border-2 border-dashed border-surface-border">
+                            <Upload className="w-6 h-6 text-on-surface-variant/40" />
+                          </div>
+                        )}
+                        <label className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                          <Upload className="w-4 h-4 text-white" />
+                          <input type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                        </label>
+                      </div>
+                      <span className="text-xs text-on-surface-variant">Choose Profile Image (Optional)</span>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-on-surface-variant mb-1.5">Full Name *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="e.g. John Doe"
+                        value={instFullName}
+                        onChange={(e) => setInstFullName(e.target.value)}
+                        className="w-full bg-background border border-surface-border text-on-surface text-sm rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary-container"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-semibold text-on-surface-variant mb-1.5">Email *</label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="e.g. john@email.com"
+                        value={instEmail}
+                        onChange={(e) => setInstEmail(e.target.value)}
+                        className="w-full bg-background border border-surface-border text-on-surface text-sm rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary-container"
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-3 pt-4 border-t border-surface-border">
+                      <button
+                        type="button"
+                        onClick={() => setIsAddInstModalOpen(false)}
+                        className="px-5 py-2.5 bg-transparent border border-surface-border text-on-surface font-semibold text-sm rounded-lg hover:bg-surface transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleQuickAddInstructor(setFieldValue)}
+                        disabled={isSavingInst}
+                        className="px-5 py-2.5 bg-primary-container text-white font-semibold text-sm rounded-lg transition-colors shadow-lg disabled:opacity-50"
+                      >
+                        {isSavingInst ? 'Saving...' : 'Save'}
+                      </button>
+                    </div>
+                  </div>
+                </Modal>
               </div>
 
               {/* Description (TipTap) */}

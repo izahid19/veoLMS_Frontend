@@ -123,6 +123,7 @@ export interface CreateCoursePayload {
   description: string;
   price: number;
   isPublished?: boolean;
+  instructor: string;
 }
 
 export interface UpdateCoursePayload {
