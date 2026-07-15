@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Film, Trash2 } from 'lucide-react';
 import { adminUploadTrailer } from '../../../crud/course.crud';
@@ -161,13 +161,13 @@ export default function CourseTrailer({ course, courseId }: CourseTrailerProps) 
                 </span>
                 <span className="flex items-center gap-4">
                   <span title="Upload speed">
-                    â†‘ {uploadStats.speed >= 1024 * 1024
+                    ↑ {uploadStats.speed >= 1024 * 1024
                       ? `${(uploadStats.speed / (1024 * 1024)).toFixed(1)} MB/s`
                       : `${(uploadStats.speed / 1024).toFixed(0)} KB/s`}
                   </span>
                   {uploadStats.eta > 0 && (
                     <span title="Estimated time remaining">
-                      â± {uploadStats.eta >= 60
+                      ⏳ {uploadStats.eta >= 60
                         ? `${Math.floor(uploadStats.eta / 60)}m ${uploadStats.eta % 60}s`
                         : `${uploadStats.eta}s`}
                     </span>
@@ -180,7 +180,7 @@ export default function CourseTrailer({ course, courseId }: CourseTrailerProps) 
             <div className="flex items-center gap-4 p-2">
               <div className="w-6 h-6 border-2 border-primary-container/30 border-t-primary-container rounded-full animate-spin shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-on-surface">Processing on Bunny Streamâ€¦</p>
+                <p className="text-sm font-semibold text-on-surface">Processing on Bunny Stream...</p>
                 <p className="text-xs text-on-surface-variant mt-1">HLS encoding in progress. This may take a moment.</p>
               </div>
             </div>
